@@ -31,7 +31,7 @@ async function shrink(file: File): Promise<string> {
 }
 
 // Board inventory outlives tab switches (the Bench unmounts inactive tabs).
-const keep: { boards: StockBoard[]; sel: string; nextId: number } = { boards: [{ id: "B1", ...PRESETS[0]!.b }], sel: "B1", nextId: 2 };
+const keep: { boards: StockBoard[]; sel: string; nextId: number } = { boards: [{ id: "B1", ...PRESETS[0]!.b }, { id: "B2", ...PRESETS[2]!.b }], sel: "B1", nextId: 3 };
 
 export function LumberStudio() {
   const w = useWorkshop();
@@ -86,7 +86,7 @@ export function LumberStudio() {
     <div className="space-y-5 p-5 text-xs">
       <div>
         <div className="eyebrow">Your boards</div>
-        <p className="mt-1 text-muted-foreground">Enter the rough boards you actually have. Every piece of this chair gets its own spot across all of them — no wood is promised twice.</p>
+        <p className="mt-1 text-muted-foreground">Add the boards you own (or tap a sample). The app finds a spot for every piece of the chair across them.</p>
         <div className="mt-2 flex flex-wrap gap-1">
           {boards.map((x) => (
             <span key={x.id} className={cn("flex items-center gap-1 rounded-full border hairline px-2 py-0.5 text-[10px]", x.id === b.id && "bg-secondary")}>
@@ -115,9 +115,40 @@ export function LumberStudio() {
         <p className="mt-1 text-[10px] text-muted-foreground">Grain slope: how far the fibres drift across the board — 1 in 20 is straight; steeper than 1 in {RUNOUT_LIMIT} is too weak for legs and posts. Leave blank if unknown.</p>
       </div>
 
+      <div>
+        <div className="flex items-center justify-between gap-2"><div className="eyebrow">Where to cut</div><ProvenanceBadge kind="calculated" topic="lumber" /></div>
+        <p className="mt-1 text-[10px] text-muted-foreground">A good fit, not guaranteed the best — some cuts may need a jigsaw rather than a straight rip.</p>
+        <div className="mt-2 space-y-3">
+          {boards.map((bd) => <BoardLayout key={bd.id} b={bd} a={alloc} colorOf={colorOf} />)}
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {cuts.map((c) => <span key={c.part} className="flex items-center gap-1 text-[10px]"><span className={cn("h-2 w-2 rounded-sm", SWATCH[colorOf.get(c.part)!])} />{c.part}</span>)}
+        </div>
+      </div>
+
+      <div>
+        <div className="eyebrow">Did every part fit?</div>
+        <div className="mt-2 space-y-2">
+          {perPart.map(({ c, placed, un, warn }) => (
+            <button key={c.part} onClick={() => pick(c.part)} className={cn("block w-full rounded-md border-l-2 bg-secondary/40 p-2 text-left", un.length ? "border-alert" : warn ? "border-walnut" : "border-teal")}>
+              <div className="flex items-center justify-between">
+                <span className="font-medium">{c.part} <span className="text-muted-foreground">×{c.qty}</span></span>
+                <span className={cn("font-mono text-[10px]", un.length ? "text-alert" : warn ? "text-walnut" : "text-teal")}>{placed.length}/{c.qty} placed</span>
+              </div>
+              <p className="mt-0.5 text-muted-foreground">
+                {placed.length > 0 && `On ${[...new Set(placed.map((p) => p.boardId))].join(", ")}${placed.some((p) => p.rotated) ? " (some turned on edge)" : ""}. `}
+                {un.length > 0 && `Not allocated: ${un.length} — ${[...new Set(un.map((u) => u.reason))].join(", ")}. `}
+                {warn && "Grain slope unknown: check runout before trusting it structurally."}
+              </p>
+            </button>
+          ))}
+        </div>
+        {alloc.unallocated.length > 0 && <p className="mt-2 text-alert">Unallocated pieces: {alloc.unallocated.map((u) => `${u.pieceId} (${u.reason})`).join(", ")}</p>}
+        <p className="mt-2 text-[10px] text-muted-foreground">Tap a part to light it up on the chair. Includes {KERF} cm saw kerf and rough-milling allowance; no resawing. Nest curved parts on a full-size template.</p>
+      </div>
       <div className="rounded-md border hairline p-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center justify-between gap-2"><div className="eyebrow">Photo inspection (AI) · {b.id}</div><ProvenanceBadge kind="ai" topic="lumber" /></div>
+          <div className="flex items-center justify-between gap-2"><div className="eyebrow">Bonus: check a board from a photo (AI) · {b.id}</div><ProvenanceBadge kind="ai" topic="lumber" /></div>
           <button onClick={() => fileRef.current?.click()} disabled={busy} className="flex items-center gap-1 rounded-md bg-teal px-2 py-1 text-[11px] text-primary-foreground disabled:opacity-60">
             {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />} {photo ? "New photo" : "Upload board photo"}
           </button>
@@ -147,37 +178,6 @@ export function LumberStudio() {
         {!photo && <p className="mt-1 text-muted-foreground">Optional: snap the selected board's face in good light. You get a species guess, visible defects and a rough grain impression — advice only, never a number fed into the layout.</p>}
       </div>
 
-      <div>
-        <div className="flex items-center justify-between gap-2"><div className="eyebrow">Shared cutting layout</div><ProvenanceBadge kind="calculated" topic="lumber" /></div>
-        <p className="mt-1 text-[10px] text-muted-foreground">Heuristic layout (best-fit), not a guaranteed optimum. Conceptual cutting layout, not a guaranteed saw-cut sequence — some layouts may need non-through cuts.</p>
-        <div className="mt-2 space-y-3">
-          {boards.map((bd) => <BoardLayout key={bd.id} b={bd} a={alloc} colorOf={colorOf} />)}
-        </div>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {cuts.map((c) => <span key={c.part} className="flex items-center gap-1 text-[10px]"><span className={cn("h-2 w-2 rounded-sm", SWATCH[colorOf.get(c.part)!])} />{c.part}</span>)}
-        </div>
-      </div>
-
-      <div>
-        <div className="eyebrow">Parts</div>
-        <div className="mt-2 space-y-2">
-          {perPart.map(({ c, placed, un, warn }) => (
-            <button key={c.part} onClick={() => pick(c.part)} className={cn("block w-full rounded-md border-l-2 bg-secondary/40 p-2 text-left", un.length ? "border-alert" : warn ? "border-walnut" : "border-teal")}>
-              <div className="flex items-center justify-between">
-                <span className="font-medium">{c.part} <span className="text-muted-foreground">×{c.qty}</span></span>
-                <span className={cn("font-mono text-[10px]", un.length ? "text-alert" : warn ? "text-walnut" : "text-teal")}>{placed.length}/{c.qty} placed</span>
-              </div>
-              <p className="mt-0.5 text-muted-foreground">
-                {placed.length > 0 && `On ${[...new Set(placed.map((p) => p.boardId))].join(", ")}${placed.some((p) => p.rotated) ? " (some turned on edge)" : ""}. `}
-                {un.length > 0 && `Not allocated: ${un.length} — ${[...new Set(un.map((u) => u.reason))].join(", ")}. `}
-                {warn && "Grain slope unknown: check runout before trusting it structurally."}
-              </p>
-            </button>
-          ))}
-        </div>
-        {alloc.unallocated.length > 0 && <p className="mt-2 text-alert">Unallocated pieces: {alloc.unallocated.map((u) => `${u.pieceId} (${u.reason})`).join(", ")}</p>}
-        <p className="mt-2 text-[10px] text-muted-foreground">Tap a part to light it up on the chair. Includes {KERF} cm saw kerf and rough-milling allowance; no resawing. Nest curved parts on a full-size template.</p>
-      </div>
     </div>
   );
 }

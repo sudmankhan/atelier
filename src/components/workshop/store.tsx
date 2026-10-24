@@ -11,7 +11,7 @@ export type { Typology, AnyPartId };
 export type AnyParams = ChairParams | JapaneseParams;
 export type AnyConsequences = Consequences | JConsequences;
 export type Section = "discover" | "study" | "design" | "build" | "lab" | "projects" | "library" | "progress" | "how";
-export type BenchTab = "inspect" | "geometry" | "feedback" | "shop" | "lumber" | "joints" | "tipping" | "ask";
+export type BenchTab = "inspect" | "feedback" | "shop" | "lumber" | "joints" | "ask";
 
 export interface ChatMsg {
   role: "user" | "assistant";
@@ -73,7 +73,7 @@ export function WorkshopProvider({ initialSection, children }: { initialSection:
   const [compare, setCompare] = useState(false);
   const [exploded, setExploded] = useState(false);
   const [dims, setDims] = useState(false);
-  const [benchTab, setBenchTab] = useState<BenchTab>("inspect");
+  const [benchTab, setBenchTab] = useState<BenchTab>(initialSection === "design" ? "feedback" : "inspect");
   const [camera, setCamera] = useState<{ preset: CameraPreset; n: number }>({ preset: "three", n: 0 });
   const [progress, setProgress] = useState<Progress>(EMPTY_PROGRESS);
   const [designs, setDesigns] = useState<SavedDesign[]>([]);
@@ -129,7 +129,10 @@ export function WorkshopProvider({ initialSection, children }: { initialSection:
     typology,
     setTypology,
     section,
-    setSection,
+    setSection: (s) => {
+      setSection(s);
+      if (s === "design") setBenchTab("feedback");
+    },
     howTopic,
     openHow: (topic) => {
       setHowTopic(topic);

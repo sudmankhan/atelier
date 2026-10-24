@@ -44,25 +44,26 @@ export function ComponentLab() {
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between p-5">
         <div className="pointer-events-auto">
-          <div className="eyebrow">Component Lab · blank bench</div>
-          <h2 className="mt-1 text-2xl">Build your own chair in 3D</h2>
+          <div className="eyebrow">Build your own</div>
+          <h2 className="mt-1 text-2xl">Pick parts, then test your chair</h2>
         </div>
         <div className="pointer-events-auto flex gap-1 rounded-lg border hairline bg-card/90 p-1 backdrop-blur">
-          <button onClick={() => setXray(!xray)} aria-pressed={xray} className={cn("flex h-9 items-center gap-2 rounded-md px-3 text-xs", xray ? "bg-teal text-accent-foreground" : "hover:bg-secondary")}>
-            <ScanEye className="h-3.5 w-3.5" /> X-ray joints
+          <button onClick={() => setXray(!xray)} aria-pressed={xray} title="See-through view: the wood turns glassy so you can see where each joint sits and how big it is" className={cn("flex h-9 items-center gap-2 rounded-md px-3 text-xs", xray ? "bg-teal text-accent-foreground" : "hover:bg-secondary")}>
+            <ScanEye className="h-3.5 w-3.5" /> See joints
           </button>
-          <button onClick={() => setPanel(!panel)} className="flex h-9 items-center gap-2 rounded-md px-3 text-xs hover:bg-secondary">
-            {panel ? <><Minimize2 className="h-3.5 w-3.5" /> Hide parts</> : <><Maximize2 className="h-3.5 w-3.5" /> Show parts</>}
+          <button onClick={() => setPanel(!panel)} title="Hide or show the parts menu" className="flex h-9 items-center gap-2 rounded-md px-3 text-xs hover:bg-secondary">
+            {panel ? <><Minimize2 className="h-3.5 w-3.5" /> Hide menu</> : <><Maximize2 className="h-3.5 w-3.5" /> Show menu</>}
           </button>
         </div>
       </div>
 
       {panel && (
         <div className="absolute z-10 left-5 top-24 bottom-5 w-80 space-y-4 overflow-y-auto rounded-xl border hairline bg-card/95 p-4 shadow-sm backdrop-blur">
-          <Pick title="Base" opts={BASES} v={d.base} on={(v) => set("base", v)} />
-          <Pick title="Back" opts={BACKS} v={d.back} on={(v) => set("back", v)} />
-          <Pick title="Joints" opts={Object.entries(JOINT_TYPES).map(([id, j]) => ({ id: id as LabDesign["joint"], label: j.name }))} v={d.joint} on={(v) => set("joint", v)} />
-          <Pick title="Wood" opts={Object.entries(WOODS).map(([id, x]) => ({ id: id as LabDesign["wood"], label: x.name }))} v={d.wood} on={(v) => set("wood", v)} />
+          <Pick title="Base" hint="What the chair stands on." opts={BASES} v={d.base} on={(v) => set("base", v)} />
+          <Pick title="Back" hint="What you lean on. No back = a stool." opts={BACKS} v={d.back} on={(v) => set("back", v)} />
+          <Pick title="Joints" hint="How the legs lock into the seat. Mortise & tenon is strongest, screws weakest." opts={Object.entries(JOINT_TYPES).map(([id, j]) => ({ id: id as LabDesign["joint"], label: j.name }))} v={d.joint} on={(v) => set("joint", v)} />
+          <Pick title="Wood" hint="Harder wood holds joints tighter; pine is soft." opts={Object.entries(WOODS).map(([id, x]) => ({ id: id as LabDesign["wood"], label: x.name }))} v={d.wood} on={(v) => set("wood", v)} />
+          <div className="eyebrow">Sizes</div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
             <Num label="Seat height" u="cm" v={d.seatHeight} min={30} max={60} on={(n) => set("seatHeight", n)} />
             <Num label="Seat depth" u="cm" v={d.seatDepth} min={30} max={60} on={(n) => set("seatDepth", n)} />
@@ -73,27 +74,31 @@ export function ComponentLab() {
             {d.back !== "none" && <Num label="Back height" u="cm" v={d.backHeight} min={15} max={70} on={(n) => set("backHeight", n)} />}
           </div>
           <label className="flex items-center gap-2 text-xs">
-            <input type="checkbox" checked={d.stretchers} onChange={(e) => set("stretchers", e.target.checked)} /> Stretchers between the legs
-          </label>
-          <label className="block text-xs">
-            <span>Your knee height (optional, cm)</span>
-            <input type="number" min={30} max={65} value={knee} placeholder="floor to back of knee, seated" onChange={(e) => setKnee(e.target.value === "" ? "" : +e.target.value)} className="mt-1 w-full rounded border hairline bg-background px-2 py-1" />
+            <input type="checkbox" checked={d.stretchers} onChange={(e) => set("stretchers", e.target.checked)} /> <span>Add stretchers <span className="text-muted-foreground">— bars between the legs that stop sideways wobble</span></span>
           </label>
           <div className="flex gap-2">
             <button onClick={() => setTested(true)} className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">Test this chair</button>
             <button onClick={() => { setD(BLANK); setTested(false); }} className="rounded-md border hairline px-4 py-2 text-sm">Clear bench</button>
           </div>
           <details className="rounded-md border hairline p-2">
-            <summary className="cursor-pointer text-xs text-muted-foreground">Side view with tipping line</summary>
-            <SideView d={d} />
-          </details>
-          <details className="rounded-md border hairline p-2">
-            <summary className="cursor-pointer text-xs text-muted-foreground">Static tipping check (torque model)</summary>
-            <div className="mt-2"><StaticsPanel pivotZ={labRearPivotZ(d)} seatRearZ={-d.seatDepth / 2} seatFrontZ={d.seatDepth / 2} seatHeight={d.seatHeight} chair={tip.mass} reclineDeg={d.back === "none" ? 0 : d.backAngle - 90} pushHeightCm={tip.pushHeightCm} /></div>
-          </details>
-          <details className="rounded-md border hairline p-2">
-            <summary className="cursor-pointer text-xs text-muted-foreground">Bending analysis (straight leg, educational)</summary>
-            <div className="mt-2"><BeamPanel key={`${d.wood}-${d.seatHeight}-${d.legThickness}`} initialLengthCm={d.seatHeight} initialSectionCm={d.legThickness} initialWood={d.wood} /></div>
+            <summary className="cursor-pointer text-xs text-muted-foreground">Show the math — side view, tipping, leg bending, your knee height</summary>
+            <div className="mt-3 space-y-4">
+              <label className="block text-xs">
+                <span>Your knee height (optional, cm) <span className="text-muted-foreground">— checks the seat height fits your legs</span></span>
+                <input type="number" min={30} max={65} value={knee} placeholder="floor to back of knee, seated" onChange={(e) => setKnee(e.target.value === "" ? "" : +e.target.value)} className="mt-1 w-full rounded border hairline bg-background px-2 py-1" />
+              </label>
+              <div>
+                <div className="eyebrow mb-1">Side view: where the weight falls</div>
+                <SideView d={d} />
+              </div>
+              <div>
+                <StaticsPanel pivotZ={labRearPivotZ(d)} seatRearZ={-d.seatDepth / 2} seatFrontZ={d.seatDepth / 2} seatHeight={d.seatHeight} chair={tip.mass} reclineDeg={d.back === "none" ? 0 : d.backAngle - 90} pushHeightCm={tip.pushHeightCm} />
+              </div>
+              <div>
+                <div className="eyebrow mb-1">How much a leg bends (straight leg, teaching model)</div>
+                <BeamPanel key={`${d.wood}-${d.seatHeight}-${d.legThickness}`} initialLengthCm={d.seatHeight} initialSectionCm={d.legThickness} initialWood={d.wood} />
+              </div>
+            </div>
           </details>
         </div>
       )}
@@ -179,10 +184,11 @@ function SideView({ d }: { d: LabDesign }) {
   );
 }
 
-function Pick<T extends string>({ title, opts, v, on }: { title: string; opts: { id: T; label: string }[]; v: T; on: (v: T) => void }) {
+function Pick<T extends string>({ title, hint, opts, v, on }: { title: string; hint?: string; opts: { id: T; label: string }[]; v: T; on: (v: T) => void }) {
   return (
     <div>
-      <div className="eyebrow mb-1.5">{title}</div>
+      <div className="eyebrow">{title}</div>
+      {hint && <div className="mb-1.5 mt-0.5 text-[11px] text-muted-foreground">{hint}</div>}
       <div className="flex flex-wrap gap-1.5">
         {opts.map((o) => (
           <button key={o.id} onClick={() => on(o.id)} className={cn("rounded-full border px-3 py-1 text-xs", v === o.id ? "border-teal bg-teal-soft text-teal" : "hairline text-muted-foreground hover:text-foreground")}>{o.label}</button>
