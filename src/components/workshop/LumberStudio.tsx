@@ -22,12 +22,40 @@ const PALETTE = ["fill-teal/50 stroke-teal", "fill-walnut/50 stroke-walnut", "fi
 const SWATCH = ["bg-teal/60", "bg-walnut/60", "bg-measure/50", "bg-alert/40", "bg-primary/40", "bg-muted-foreground/40"];
 
 async function shrink(file: File): Promise<string> {
-  const img = await createImageBitmap(file);
-  const s = Math.min(1, 1280 / Math.max(img.width, img.height));
+  let source: CanvasImageSource;
+  let width: number;
+  let height: number;
+  let cleanup = () => {};
+  try {
+    const bitmap = await createImageBitmap(file);
+    source = bitmap; width = bitmap.width; height = bitmap.height;
+    cleanup = () => bitmap.close();
+  } catch {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    cleanup = () => URL.revokeObjectURL(url);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error("Unsupported or damaged image"));
+        image.src = url;
+      });
+      source = image; width = image.naturalWidth; height = image.naturalHeight;
+    } catch (error) {
+      cleanup();
+      throw error;
+    }
+  }
+  if (!width || !height) { cleanup(); throw new Error("Image has no readable dimensions"); }
+  const s = Math.min(1, 1280 / Math.max(width, height));
   const c = document.createElement("canvas");
-  c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
-  c.getContext("2d")!.drawImage(img, 0, 0, c.width, c.height);
-  return c.toDataURL("image/jpeg", 0.82);
+  c.width = Math.max(1, Math.round(width * s)); c.height = Math.max(1, Math.round(height * s));
+  const context = c.getContext("2d");
+  if (!context) { cleanup(); throw new Error("Image conversion is unavailable"); }
+  context.drawImage(source, 0, 0, c.width, c.height);
+  const result = c.toDataURL("image/jpeg", 0.82);
+  cleanup();
+  return result;
 }
 
 // Board inventory outlives tab switches (the Bench unmounts inactive tabs).
@@ -61,13 +89,18 @@ export function LumberStudio() {
     if (!f) return;
     setErr(null); setReport(null);
     if (f.size === 0) { setErr("That file is empty — choose a photo of your board."); return; }
-    const url = await shrink(f).catch(() => null);
-    if (!url) { setErr("That file couldn't be opened as an image. Try a JPEG, PNG or WebP photo."); return; }
-    setPhoto(url); setBusy(true);
-    const r = await inspect({ data: { image: url, board: { l: b.l, w: b.w, t: b.t }, typology: w.typology, parts: cuts.map((c) => c.part) } }).catch(() => null);
-    setBusy(false);
-    if (!r || !r.ok) { setErr(r?.error ?? "Couldn't inspect the photo."); return; }
-    setReport(r.report);
+    setBusy(true);
+    try {
+      const url = await shrink(f);
+      setPhoto(url);
+      const r = await inspect({ data: { image: url, board: { l: b.l, w: b.w, t: b.t }, typology: w.typology, parts: cuts.map((c) => c.part) } });
+      if (!r.ok) { setErr(r.error); return; }
+      setReport(r.report);
+    } catch (error) {
+      setErr(error instanceof Error && /image|decode|format|dimension/i.test(error.message) ? "That image format couldn't be read. Try a JPEG, PNG or WebP image." : "Couldn't inspect the photo. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function pick(part: string) {
@@ -152,7 +185,7 @@ export function LumberStudio() {
           <button onClick={() => fileRef.current?.click()} disabled={busy} className="flex items-center gap-1 rounded-md bg-teal px-2 py-1 text-[11px] text-primary-foreground disabled:opacity-60">
             {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />} {photo ? "New photo" : "Upload board photo"}
           </button>
-          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ""; }} />
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = ""; }} />
         </div>
         {photo && <img src={photo} alt="Your board" className="mt-2 max-h-32 w-full rounded object-cover" />}
         {busy && <p className="mt-2 text-muted-foreground">Reading the grain…</p>}
