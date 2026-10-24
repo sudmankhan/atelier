@@ -15,4 +15,5 @@
 - [ ] Hackathon angles: sit-and-stress test animation, shop export (PDF/STL), grain photo inspector, pitch flow
 
 - [x] Lumber Studio: board → part matcher with layout + 3D highlight, AI photo grain inspection
+- [x] Lumber Studio: shared multi-board allocation (MaxRects), no resawing, area accounting
 - [ ] Sit & Stress animation, Shop Pack export, Judge tour

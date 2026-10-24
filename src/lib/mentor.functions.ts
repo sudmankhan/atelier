@@ -30,6 +30,9 @@ When the design changes, respond as a master would:
 Use the COMPUTED GEOMETRY numbers exactly as given — they are authoritative; never invent numbers. Use the REFERENCE EXCERPTS for craft principles and refer to them by title only. Never invent sources, studies, standards or URLs.
 Never claim a design is safe, never give structural safety scores, never promise an angle guarantees comfort; frame judgments as craft reasoning that a real build must still test.
 The 3D chairs are simplified educational reconstructions, not exact manufacturing reproductions.
+Use the PARAMETERS block for what each design term means; never reinterpret a parameter (for example, support spacing is the rear support's kick-back, not rail spacing). If the apprentice names something that is not a parameter, say so.
+Lines tagged [CALCULATED] are computed by the app; lines tagged [HEURISTIC] are rule-of-thumb estimates and must be described as estimates. Follow every MANDATORY FACTS line.
+Never calculate stresses, loads or capacities yourself and never invent material properties. Do not say a part will fail, will survive, will shoulder all the load, or is safe. When explaining physics, state the model assumption. When something cannot be calculated here, say so plainly. Your advice is not structural certification.
 Plain prose only: no markdown, no asterisks, no headings, no bullet lists; short paragraphs; under 200 words. Speak in first person as the Master.`;
 
 export const askMaster = createServerFn({ method: "POST" })
@@ -39,13 +42,25 @@ export const askMaster = createServerFn({ method: "POST" })
   })
   .handler(async ({ data }) => {
     const { retrieveSync } = await import("@/lib/knowledge/retrieve");
-    const { generateChatCompletion, GatewayError } = await import("@lovable.dev/ai-gateway");
+    const { resolveParams, describeParam, clarifyReply, PARAM_DICTIONARY } = await import("@/lib/mentor/paramDictionary");
+    const { detectClaims, mandatoryFacts, checkAnswer, LIMITATION_NOTE } = await import("@/lib/mentor/claims");
     const ctx = data.context;
+    const resolution = resolveParams(data.question, ctx.typology);
+    // Ambiguous parameter: ask instead of guessing (no model call).
+    if (resolution.kind === "ambiguous") return { ok: true as const, answer: clarifyReply(resolution), sources: [] as MentorSource[] };
+    const { generateChatCompletion, GatewayError } = await import("@lovable.dev/ai-gateway");
     const hits = retrieveSync(data.question, { partId: null, changedParams: ctx.changed, typology: ctx.typology }, 4);
     const refs = hits.map((h, i) => `[${i + 1}] ${h.sourceTitle}\nTopic: ${h.topic}\n${h.principle} ${h.explanation}`).join("\n\n");
     const paramText = Object.entries(ctx.params)
       .map(([k, v]) => `${k} ${v}`)
       .join(", ");
+    const paramBlock =
+      resolution.kind === "resolved"
+        ? resolution.params.map((p) => describeParam(p, ctx.params[p.key])).join("\n")
+        : resolution.kind === "unknown"
+          ? `The apprentice said "${resolution.term}", which is NOT a parameter of this chair. Say so plainly, then point to the closest real parameters:\n${resolution.closest.map((p) => describeParam(p, ctx.params[p.key])).join("\n")}`
+          : `No specific parameter named. Known parameters:\n${PARAM_DICTIONARY[ctx.typology].map((p) => `${p.label}: ${p.meaning}`).join("\n")}`;
+    const facts = mandatoryFacts(detectClaims(data.question), ctx.typology);
     const ctxText = [
       `Chair being studied: ${ctx.typology === "japanese" ? "Japanese-inspired spindle-back armchair" : "Kangaroo-inspired low lounge chair"}`,
       `Section: ${ctx.section}`,
@@ -53,7 +68,9 @@ export const askMaster = createServerFn({ method: "POST" })
       `Active lesson: ${ctx.lesson ?? "none"}`,
       `Current parameters: ${paramText}.`,
       `Changed from original: ${ctx.changed.length ? ctx.changed.join(", ") : "nothing"}`,
+      `PARAMETERS (authoritative definitions):\n${paramBlock}`,
       `COMPUTED GEOMETRY:\n${ctx.observations.slice(0, 12).join("\n") || "no changes"}`,
+      facts.length ? `MANDATORY FACTS:\n${facts.join("\n")}` : "",
     ].join("\n");
 
     try {
@@ -67,10 +84,14 @@ export const askMaster = createServerFn({ method: "POST" })
         ],
       });
       const content = res.choices?.[0]?.message?.content;
-      const answer = typeof content === "string" ? content : "";
+      let answer = (typeof content === "string" ? content : "").replace(/\*\*?/g, "");
+      if (answer) {
+        const chk = checkAnswer(answer, ctxText);
+        if (chk.overclaim || chk.inventedNumbers.length) answer += `\n\n${LIMITATION_NOTE}`;
+      }
       return {
         ok: true as const,
-        answer: answer.replace(/\*\*?/g, "") || "I don't have a confident answer to that from my references.",
+        answer: answer || "I don't have a confident answer to that from my references.",
         sources: hits.map((h) => ({ title: h.sourceTitle, url: h.sourceUrl })) as MentorSource[],
       };
     } catch (e) {

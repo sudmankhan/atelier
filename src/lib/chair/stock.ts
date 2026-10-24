@@ -12,9 +12,10 @@ export interface StockMatch {
 }
 
 const LOAD_BEARING = /leg|post|support|rail|crest|spindle|arm/i;
+export const isLoadBearing = (part: string) => LOAD_BEARING.test(part);
 export const RUNOUT_LIMIT = 12; // 1:12 rule
 
-/** How many pieces of `rough` fit in the board, grain along the board length. Resawing in thickness counted. */
+/** How many pieces of `rough` fit in the board, grain along the board length. No resawing: thickness must fit in one layer. */
 export function yieldOf(b: Board, r: Dim) {
   // allow the part's width/thickness to swap (rotate the section 90°)
   const opts = [
@@ -25,7 +26,7 @@ export function yieldOf(b: Board, r: Dim) {
   for (const o of opts) {
     const cols = Math.floor((b.l + KERF) / (r.l + KERF));
     const rows = Math.floor((b.w + KERF) / (o.w + KERF));
-    const layers = Math.floor((b.t + KERF) / (o.t + KERF));
+    const layers = o.t <= b.t ? 1 : 0;
     const n = Math.max(0, cols) * Math.max(0, rows) * Math.max(0, layers);
     if (n > best.n) best = { n, cols, rows, layers, w: o.w };
   }

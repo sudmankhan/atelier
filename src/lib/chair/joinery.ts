@@ -61,7 +61,7 @@ export function checkJoint(j: JointSpec, tenonT: number, tenonL: number): JointC
     rule: "Mortise walls ≥ 0.6 cm each side",
     value: `${r1(wall)} cm walls`,
     level: wall < 0.45 ? "bad" : wall < 0.6 ? "warn" : "good",
-    advice: wall < 0.6 ? "Walls this thin blow out when you clamp or when the wedge drives in. Thin the tenon or use thicker stock." : "Walls are thick enough to survive clamping and seasonal movement.",
+    advice: wall < 0.6 ? "Walls this thin can blow out when you clamp or when the wedge drives in. Thin the tenon or use thicker stock." : "Walls meet the shop rule of thumb for clamping and seasonal movement (not a tested result).",
   });
   const depthRatio = tenonL / j.mortiseDepthMax;
   const lenRatio = tenonL / j.tenonMember;

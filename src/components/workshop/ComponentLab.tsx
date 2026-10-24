@@ -4,6 +4,9 @@ import { BLANK, JOINT_FACTOR, WOODS, evaluateLab, labScore, tipMargin, type Back
 import { StudioShell } from "@/components/three/StudioCanvas";
 import { LabModel } from "@/components/three/LabModel";
 import { cn } from "@/lib/utils";
+import { labRearPivotZ } from "@/lib/statics";
+import { StaticsPanel } from "./StaticsPanel";
+import { BeamPanel } from "./BeamPanel";
 
 const BASES: { id: Base; label: string }[] = [
   { id: "four", label: "4 straight legs" },
@@ -78,6 +81,14 @@ export function ComponentLab() {
             <summary className="cursor-pointer text-xs text-muted-foreground">Side view with tipping line</summary>
             <SideView d={d} />
           </details>
+          <details className="rounded-md border hairline p-2">
+            <summary className="cursor-pointer text-xs text-muted-foreground">Static tipping check (torque model)</summary>
+            <div className="mt-2"><StaticsPanel pivotZ={labRearPivotZ(d)} seatRearZ={-d.seatDepth / 2} seatFrontZ={d.seatDepth / 2} seatHeight={d.seatHeight} /></div>
+          </details>
+          <details className="rounded-md border hairline p-2">
+            <summary className="cursor-pointer text-xs text-muted-foreground">Bending analysis (straight leg, educational)</summary>
+            <div className="mt-2"><BeamPanel key={`${d.wood}-${d.seatHeight}-${d.legThickness}`} initialLengthCm={d.seatHeight} initialSectionCm={d.legThickness} initialWood={d.wood} /></div>
+          </details>
         </div>
       )}
 
@@ -102,7 +113,7 @@ function ResultsCard({ results, score, note, tips, onClose }: { results: ReturnT
       </div>
       {!min && (
         <div className="mt-2 max-h-[50vh] space-y-2 overflow-y-auto">
-          {tips && <p className="text-xs text-alert">The model is tilted back: this chair tips when someone leans.</p>}
+          {tips && <p className="text-xs text-alert">The model is tilted back because the heuristic estimate suggests it may tip when someone leans.</p>}
           {results.map((r, k) => (
             <div key={k} className={cn("rounded-md border-l-2 bg-background p-2.5", tone[r.level])}>
               <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{r.area}</div>
@@ -152,7 +163,7 @@ function SideView({ d }: { d: LabDesign }) {
         <g><line x1={cx} y1={sy - 60} x2={cx} y2={fy} className={tm < 0 ? "stroke-alert" : "stroke-teal"} strokeDasharray="4 3" />
           <text x={cx + 4} y={sy - 50} fontSize={9} className={tm < 0 ? "fill-alert" : "fill-teal"}>sitter's weight (leaning)</text></g>
       ); })()}
-      <text x={6} y={14} fontSize={9} className="fill-muted-foreground">If the dashed line falls behind the rear foot, the chair tips.</text>
+      <text x={6} y={14} fontSize={9} className="fill-muted-foreground">Heuristic: if the dashed line falls behind the rear foot, tipping is likely.</text>
     </svg>
   );
 }

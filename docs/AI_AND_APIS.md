@@ -40,3 +40,12 @@ The returned `grainSlope` is fed into the deterministic `matchStock` — the AI 
 - Keep calls in `createServerFn` handlers; read secrets via `process.env[...]` inside handlers only.
 - Never let the model invent numbers, sources or URLs; numbers come from `src/lib/chair/*`.
 - The mentor and lumber inspector are the only AI surfaces. Everything else works with AI turned off.
+
+## Lumber photo inspection — suitability gate (updated)
+- Server fn `inspectLumber` (src/lib/lumber.functions.ts) uses `.validator()` (the `.inputValidator()` name is deprecated in the installed @tanstack/start-client-core).
+- Input checks are deterministic (`validateImageDataUrl` in src/lib/lumberReport.ts): JPEG/PNG/WebP data URL, non-empty, size cap.
+- The model must first classify the image: usable / insufficient_detail / synthetic_or_non_wood / uncertain.
+- `parseLumberReport` validates the reply with zod. Anything not "usable", or malformed, becomes an abstention with photo tips and no grain number or part advice. No grain reading → no "good for" parts.
+- Model confidence is shown as the model's own label, never as a probability; no confidence threshold is applied (no calibration data).
+- A grain estimate is never written to the board automatically; the user clicks "Use 1 in N" to apply it.
+- The suitability check is itself model-based and can be wrong.

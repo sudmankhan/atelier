@@ -62,7 +62,7 @@ Showcase of both chairs with story, key measurements and an entry into study/des
 - **Test this chair** → score /100 and results (stability, joints/racking, parts, comfort, wood movement, craft mismatches). Failing stability tilts the 3D chair backward.
 - Parts panel collapsible, results card min/max.
 
-## 11. Lumber Studio (`LumberStudio.tsx`, `src/lib/chair/stock.ts`, `src/lib/lumber.functions.ts`)
+## 11. Lumber Studio (`LumberStudio.tsx`, `src/lib/chair/allocate.ts` — shared multi-board layout, see ENGINEERING_RULES, `src/lib/chair/stock.ts`, `src/lib/lumber.functions.ts`)
 - Enter a board L × W × T (cm) and optional grain slope, or choose a sample (straight walnut, 1:7 runout oak, knotty pine), or upload a photo.
 - Deterministic matcher: for every cut-list part, how many fit (kerf 0.3 cm, section can rotate, resaw counted), waste %, cut layout diagram, verdict good/warn/bad. Load-bearing parts on grain steeper than 1:12 → bad.
 - Matching parts are highlighted on the 3D chair.
@@ -77,3 +77,6 @@ Showcase of both chairs with story, key measurements and an entry into study/des
 - Library: curated entries from `src/lib/knowledge/library.ts` + in-app techniques. No Wikipedia/YouTube links (removed deliberately).
 - Projects: saved designs per typology, compare.
 - Progress: walkthrough/build progress from the repository.
+
+## Static tipping check
+Bench "Tipping" tab (Kangaroo + Japanese) and a Component Lab panel: editable W, F, h and combined CoM; diagram with moment bars and worked formulas. Lab racking/tipping results are worded as rule-of-thumb estimates.

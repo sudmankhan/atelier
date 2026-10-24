@@ -1,9 +1,11 @@
 // 3D model generated from a Component Lab design. Units: cm in, metres out (×0.01).
 // Joints are drawn as real tenons / dowels / wedges / screws; "x-ray" makes the wood see-through.
+import "./r3fDevSourceShim";
 import { useMemo } from "react";
 import * as THREE from "three";
 import { Html } from "@react-three/drei";
 import type { LabDesign } from "@/lib/lab";
+import { labRearPivotZ } from "@/lib/statics";
 
 const S = 0.01;
 type V = [number, number, number];
@@ -150,7 +152,7 @@ export function LabModel({ d, xray, tipping }: { d: LabDesign; xray: boolean; ti
   }
 
   // Pivot about the rear foot when the design tips backward.
-  const rearZ = d.base === "zframe" ? rz - 16 : d.base === "sled" ? rz - 6 : rz - sp;
+  const rearZ = labRearPivotZ(d);
   return (
     <group position={[0, 0, rearZ * S]} rotation-x={tipping ? -0.22 : 0}>
       <group position={[0, 0, -rearZ * S]}>

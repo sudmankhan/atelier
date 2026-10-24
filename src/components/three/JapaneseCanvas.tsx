@@ -1,3 +1,4 @@
+import "./r3fDevSourceShim";
 import { StressOverlay } from "./StressOverlay";
 import type { StressReport } from "@/lib/chair/stress";
 import { Html, Line } from "@react-three/drei";

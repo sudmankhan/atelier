@@ -33,21 +33,23 @@ export const JOINT_FACTOR: Record<JointType, { name: string; f: number }> = {
 export type Level = "good" | "warn" | "bad";
 export interface LabResult { area: string; level: Level; title: string; detail: string }
 
-const rad = (d: number) => (d * Math.PI) / 180;
+import { labRearPivotZ } from "./statics";
+
 const r1 = (n: number) => Math.round(n * 10) / 10;
 
-/** Rear tipping margin (cm) when a sitter leans back hard: positive = stable. */
-export function tipMargin(d: LabDesign) {
+/** HEURISTIC lean-back margin (cm), rough teaching estimate; see statics.ts for the torque model. */
+export function tipHeuristicCm(d: LabDesign) {
   const recline = d.back === "none" ? 0 : Math.max(0, d.backAngle - 90 - 5);
   // Leaning sitter's weight shifts back with recline (≈0.6 cm per degree beyond upright, teaching approximation).
   const comX = d.seatDepth * 0.65 + recline * 0.6 + (d.back === "none" ? 0 : 3);
-  const footSpread = Math.tan(rad(d.splay)) * d.seatHeight;
-  const baseRear =
-    d.base === "sled" ? d.seatDepth + 4 : d.base === "zframe" ? d.seatDepth + 14 : d.seatDepth + footSpread;
+  // Rear foot measured back from the seat front, using the same pivot as the 3D model and statics.
+  const baseRear = d.seatDepth / 2 - labRearPivotZ(d);
   return r1(baseRear - comX);
 }
 
-/** Racking demand vs resistance: 0–1+ (above 1 = will loosen). */
+export const tipMargin = tipHeuristicCm;
+
+/** Racking demand vs resistance: 0–1+ (rule-of-thumb; above 1 suggests high loosening risk). */
 export function rackingIndex(d: LabDesign) {
   const lever = d.seatHeight / 45;
   const legs = d.base === "sled" || d.base === "zframe" ? 0.6 : 1;
@@ -61,17 +63,17 @@ export function evaluateLab(d: LabDesign): LabResult[] {
   const out: LabResult[] = [];
   const tm = tipMargin(d);
   out.push(tm < 0
-    ? { area: "Stability", level: "bad", title: `Tips backward (${tm} cm short)`, detail: "When the sitter leans back, their weight passes behind the rear feet. Splay the back legs, lengthen the base, or reduce recline." }
-    : tm < 4 ? { area: "Stability", level: "warn", title: `Marginal (${tm} cm to spare)`, detail: "A hard lean-back gets close to the tipping point. A few degrees of rear splay buys real safety." }
-    : { area: "Stability", level: "good", title: `Stable (${tm} cm to spare)`, detail: "Rear feet sit well behind the sitter's leaning weight." });
+    ? { area: "Stability", level: "bad", title: `Heuristic: likely to tip back (${tm} cm short)`, detail: "This rough estimate suggests a leaning sitter's weight may pass behind the rear feet. Splay the back legs, lengthen the base, or reduce recline." }
+    : tm < 4 ? { area: "Stability", level: "warn", title: `Heuristic: marginal (${tm} cm estimated)`, detail: "The estimate suggests a hard lean-back may approach the tipping point. More rear splay may add margin. Check the static tipping panel." }
+    : { area: "Stability", level: "good", title: `Heuristic margin ${tm} cm`, detail: "The rough estimate suggests the rear feet sit behind the leaning weight. Not a proof of stability." });
 
   const ri = rackingIndex(d);
   out.push(ri > 1
-    ? { area: "Joints", level: "bad", title: `Will rack loose (index ${ri})`, detail: `${JOINT_FACTOR[d.joint].name} in ${WOODS[d.wood].name.toLowerCase()} can't resist the leverage of a ${d.seatHeight} cm leg${d.stretchers ? "" : " with no stretchers"}. Use mortise & tenon or wedged tenons, add stretchers, or thicken legs.` }
-    : ri > 0.7 ? { area: "Joints", level: "warn", title: `Will loosen over years (index ${ri})`, detail: "Fine on day one; daily rocking slowly works it loose. Stretchers or a stronger joint add margin." }
-    : { area: "Joints", level: "good", title: `Holds (index ${ri})`, detail: "Joint and wood resist the leg leverage with margin." });
+    ? { area: "Joints", level: "bad", title: `Racking risk high (rule-of-thumb index ${ri})`, detail: `${JOINT_FACTOR[d.joint].name} in ${WOODS[d.wood].name.toLowerCase()} may struggle to resist the leverage of a ${d.seatHeight} cm leg${d.stretchers ? "" : " with no stretchers"}. Use mortise & tenon or wedged tenons, add stretchers, or thicken legs.` }
+    : ri > 0.7 ? { area: "Joints", level: "warn", title: `Racking risk moderate (rule-of-thumb index ${ri})`, detail: "Daily rocking may gradually loosen it. Stretchers or a stronger joint add margin." }
+    : { area: "Joints", level: "good", title: `Racking risk low (rule-of-thumb index ${ri})`, detail: "The rule of thumb suggests the joint and wood have margin against leg leverage. Not a tested result." });
 
-  if (d.legThickness < 2.8) out.push({ area: "Parts", level: d.legThickness < 2.4 ? "bad" : "warn", title: "Thin legs", detail: `At ${d.legThickness} cm there's little wood left around a joint — walls blow out. Most chair legs are 3.2–4.5 cm.` });
+  if (d.legThickness < 2.8) out.push({ area: "Parts", level: d.legThickness < 2.4 ? "bad" : "warn", title: "Thin legs", detail: `At ${d.legThickness} cm there's little wood left around a joint, so mortise walls may blow out. Most chair legs are 3.2–4.5 cm.` });
 
   const h = d.seatHeight;
   out.push(h < 36 || h > 50
