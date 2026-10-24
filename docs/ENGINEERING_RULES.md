@@ -36,3 +36,19 @@ Compare current params vs baseline → `Observation[]` (plain facts used by UI a
 
 ## Stock matcher (`chair/stock.ts`)
 `KERF=0.3`; `yieldOf` = floor((L+k)/(l+k))·floor((W+k)/(w+k))·floor((T+k)/(t+k)), trying both section orientations. Load-bearing regex `/leg|post|support|rail|crest|spindle|arm/i`. Verdict: no fit → bad; load-bearing and grainSlope < `RUNOUT_LIMIT=12` → bad; fits fewer than qty → warn; else good. Waste % from placed layout area. `partIdFor` maps cut names to 3D part ids for highlighting.
+
+## Shared lumber allocation (`chair/allocate.ts`)
+`allocate(boards, cuts)` expands the cut list into pieces (`Leg#1…`), sorts them (area ↓, length ↓, name, index) and places each with MaxRects + Best Short Side Fit across all boards (ties: board order, y, x, unrotated first). Heuristic, not a global optimum; layouts may be non-guillotine (conceptual, not a saw-cut sequence).
+- Grain always runs along board length. Cross-section may swap w/t (`rotated: true`) only if face width ≤ board width and thickness ≤ board thickness. No resawing.
+- Kerf: pieces inflated by `KERF` on length and width inside a (L+kerf)×(W+kerf) bin, so pieces may sit flush on far edges. kerfArea = Σ(inflated rect ∩ board) − piece area (off-board kerf not counted). remaining = total − used − kerf.
+- Grain steeper than 1:12 refuses structural parts; unknown grain places them with a warning.
+- Unallocated reasons: invalid dimensions, too thick, too long, too wide, grain too steep, out of room. Invalid boards (≤0 or non-finite) are ignored and listed.
+- Complexity ≈ O(n·F²), F = free rects (≈O(n³) worst case). Limits: greedy, rectangles only, no defect avoidance, kerf estimated.
+
+## Static tipping (torque model) — `src/lib/statics.ts`
+- Convention: +z forward (cm). d = (comZ − pivotZ)/100 m, positive when the combined chair + occupant CoM is forward of the rear support pivot. Negative d is kept.
+- Gravity moment W·d (signed), overturning F·h, net = W·d − F·h, threshold F = W·d/h (h > 0, d ≥ 0; otherwise n/a).
+- Status is an idealized static tendency ("tends to stay / balance / tends to tip"), not a real-world outcome.
+- 900 N / 250 N are example loads, not standards. CoM default (35% of seat depth forward of the seat rear) and 80 cm push height are illustrative assumptions.
+- Excludes motion, impact, sliding, uneven ground, flex and joint failure. Does not certify stability.
+- `tipMargin`/`tipHeuristicCm` in lab.ts remain a labeled cm heuristic; Lab 3D pivot uses `labRearPivotZ`.

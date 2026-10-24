@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { parseLumberReport, validateImageDataUrl } from "./lumberReport";
 
 export interface LumberInput {
   image: string; // data URL (jpeg/png/webp)
@@ -6,27 +7,22 @@ export interface LumberInput {
   typology: "kangaroo" | "japanese";
   parts: string[];
 }
-export interface LumberReport {
-  species: string;
-  cut: string; // flat-sawn / quarter-sawn / rift / unknown
-  grainSlope: number | null; // N in "1 in N"
-  defects: string[];
-  bestFor: string[];
-  avoidFor: string[];
-  advice: string;
-  confidence: "low" | "medium" | "high";
-}
+export type { LumberReport } from "./lumberReport";
 
-const SYSTEM = `You are a strict master chairmaker inspecting a photo of a real board of timber for an apprentice.
-Look only at what is visible. Estimate: species (or "unknown"), sawing (flat-sawn, quarter-sawn, rift-sawn, unknown), grain slope relative to the board's long edge as N in "1 in N" (straight grain ~ 20+, null if you truly cannot see grain), and visible defects (knots, checks, sapwood, wane, twist, pith, spalting).
-Then assign the apprentice's chair parts: bestFor and avoidFor must only use names from the PARTS list given. Apply the 1:12 rule: grain steeper than 1 in 12 must not be used for legs, posts, spindles, crest rails or other loaded long parts.
-Never claim the board is safe; you are judging from a photo. advice: under 70 words, plain prose, how to orient and cut this board.
-Reply ONLY with JSON: {"species":string,"cut":string,"grainSlope":number|null,"defects":string[],"bestFor":string[],"avoidFor":string[],"advice":string,"confidence":"low"|"medium"|"high"}`;
+const SYSTEM = `You are a strict master chairmaker inspecting an uploaded image for an apprentice.
+STEP 1 — suitability. Decide first whether the image actually shows a real, physical wood surface with enough detail to read grain:
+- "usable": a real photographed board, in focus, grain lines/pores clearly visible.
+- "insufficient_detail": real wood, but blurry, too dark, too far, glare, or finish hides the grain.
+- "synthetic_or_non_wood": a drawing, render, digital pattern, uniform stripes, text, or any non-wood subject.
+- "uncertain": you cannot tell.
+Be skeptical: regular perfect stripes with no pores, rays, colour variation or texture are synthetic. If not "usable", set every other field to null and explain why in suitabilityReason.
+STEP 2 (only if usable): species (or "unknown"), cut (flat-sawn | quarter-sawn | rift-sawn | unknown), grainSlope as N in "1 in N" relative to the long edge, or null if not readable; visible defects. bestFor/avoidFor may only use names from PARTS. Apply the 1:12 rule for legs, posts, spindles, rails. Never invent moisture content, strength or measurements. Never claim the board is safe. advice: under 70 words.
+Reply ONLY with JSON: {"suitability":string,"suitabilityReason":string,"species":string|null,"cut":string|null,"grainSlope":number|null,"defects":string[]|null,"bestFor":string[]|null,"avoidFor":string[]|null,"advice":string|null,"modelConfidence":"low"|"medium"|"high"|null}`;
 
 export const inspectLumber = createServerFn({ method: "POST" })
-  .inputValidator((i: LumberInput) => {
-    if (!i || typeof i.image !== "string" || !/^data:image\/(jpeg|png|webp);base64,/.test(i.image)) throw new Error("Image required");
-    if (i.image.length > 6_000_000) throw new Error("Image too large");
+  .validator((i: LumberInput) => {
+    const bad = validateImageDataUrl(i?.image);
+    if (bad) throw new Error(bad);
     return { ...i, parts: (i.parts ?? []).slice(0, 20).map((p) => String(p).slice(0, 60)) };
   })
   .handler(async ({ data }) => {
@@ -42,20 +38,7 @@ export const inspectLumber = createServerFn({ method: "POST" })
       } as Parameters<typeof generateChatCompletion>[0]);
       const raw = res.choices?.[0]?.message?.content;
       const text = typeof raw === "string" ? raw : "";
-      const json = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
-      const p = JSON.parse(json) as Partial<LumberReport>;
-      const allowed = new Set(data.parts);
-      const slope = typeof p.grainSlope === "number" && p.grainSlope > 0 ? Math.round(p.grainSlope) : null;
-      const report: LumberReport = {
-        species: String(p.species ?? "unknown"),
-        cut: String(p.cut ?? "unknown"),
-        grainSlope: slope,
-        defects: Array.isArray(p.defects) ? p.defects.map(String).slice(0, 6) : [],
-        bestFor: Array.isArray(p.bestFor) ? p.bestFor.map(String).filter((x) => allowed.has(x)) : [],
-        avoidFor: Array.isArray(p.avoidFor) ? p.avoidFor.map(String).filter((x) => allowed.has(x)) : [],
-        advice: String(p.advice ?? "").replace(/\*/g, ""),
-        confidence: p.confidence === "high" || p.confidence === "medium" ? p.confidence : "low",
-      };
+      const report = parseLumberReport(text, data.parts);
       return { ok: true as const, report, error: null };
     } catch (e) {
       console.error("inspectLumber failed", e);

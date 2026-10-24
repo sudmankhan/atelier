@@ -17,6 +17,7 @@ import { SideProfile } from "@/components/SideProfile";
 import { ShopSheet } from "./ShopSheet";
 import { LumberStudio } from "./LumberStudio";
 import { JointInspector } from "./JointInspector";
+import { StaticsPanel } from "./StaticsPanel";
 import { useWorkshop, type AnyPartId, type BenchTab } from "./store";
 import { cn } from "@/lib/utils";
 
@@ -71,6 +72,7 @@ const TABS: { id: BenchTab; label: string }[] = [
   { id: "shop", label: "Shop" },
   { id: "lumber", label: "Lumber" },
   { id: "joints", label: "Joints" },
+  { id: "tipping", label: "Tipping" },
   { id: "ask", label: "Ask" },
 ];
 
@@ -119,6 +121,7 @@ export function Bench() {
             {w.benchTab === "shop" && <ShopSheet />}
             {w.benchTab === "lumber" && <LumberStudio />}
             {w.benchTab === "joints" && <JointInspector />}
+            {w.benchTab === "tipping" && <Tipping />}
             {w.benchTab === "ask" && <Ask />}
           </motion.div>
         </AnimatePresence>
@@ -139,6 +142,19 @@ function PartChips({ parts }: { parts: AnyPartId[] }) {
       ))}
     </div>
   );
+}
+
+function Tipping() {
+  const w = useWorkshop();
+  const isK = w.typology === "kangaroo";
+  const params = w.section === "design" ? w.params : isK ? BASELINE : J_BASELINE;
+  if (isK) {
+    const g = computeGeometry(params as ChairParams);
+    return <div className="p-5"><StaticsPanel pivotZ={g.rearFoot.z} seatRearZ={g.seatRear.z} seatFrontZ={g.seatFront.z} seatHeight={(params as ChairParams).seatHeight} /></div>;
+  }
+  const jp = params as JapaneseParams;
+  const g = computeJapanese(jp);
+  return <div className="p-5"><StaticsPanel pivotZ={g.rearFoot.z} seatRearZ={-jp.seatDepth / 2} seatFrontZ={jp.seatDepth / 2} seatHeight={jp.seatHeight} /></div>;
 }
 
 function Inspect() {
@@ -440,7 +456,10 @@ function Ask() {
             lesson: lesson ?? null,
             params: w.params as unknown as Record<string, number | string>,
             changed: c.changed,
-            observations: [...c.geometry, ...c.craft].map((o) => `${o.title}: ${o.detail}`),
+            observations: [
+              ...c.geometry.map((o) => `[CALCULATED] ${o.title}: ${o.detail}`),
+              ...c.craft.map((o) => `[HEURISTIC] ${o.title}: ${o.detail}`),
+            ],
           },
         },
       });

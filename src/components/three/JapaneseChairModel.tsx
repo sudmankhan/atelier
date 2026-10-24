@@ -1,3 +1,4 @@
+import "./r3fDevSourceShim";
 import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";

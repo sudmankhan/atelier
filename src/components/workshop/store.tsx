@@ -11,7 +11,7 @@ export type { Typology, AnyPartId };
 export type AnyParams = ChairParams | JapaneseParams;
 export type AnyConsequences = Consequences | JConsequences;
 export type Section = "discover" | "study" | "design" | "build" | "lab" | "projects" | "library" | "progress";
-export type BenchTab = "inspect" | "geometry" | "feedback" | "shop" | "lumber" | "joints" | "ask";
+export type BenchTab = "inspect" | "geometry" | "feedback" | "shop" | "lumber" | "joints" | "tipping" | "ask";
 
 export interface ChatMsg {
   role: "user" | "assistant";

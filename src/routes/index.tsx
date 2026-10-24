@@ -20,7 +20,7 @@ export const Route = createFileRoute("/")({
 
 const PILLARS = [
   ["Take great chairs apart", "Explode historic chairs piece by piece in 3D and learn why every part is shaped the way it is.", "study"],
-  ["Change them and see what breaks", "Drag the sliders. Joint stress, grain direction, tipping and angles recalculate as you move.", "design"],
+  ["Change them and see what changes", "Drag the sliders. Joint stress, grain direction, tipping and angles recalculate as you move.", "design"],
   ["Build your own from scratch", "Pick legs, seat, back, joints and wood. See it in 3D, x-ray the joints, then test it.", "lab"],
   ["Take it to the shop", "Cut list with rough and finished sizes, saw and drill angles, and the right glue-up order.", "build"],
 ] as const;
