@@ -44,7 +44,6 @@ export const inspectLumber = createServerFn({ method: "POST" })
             parts: [{ text: ctx }, { inlineData: { mimeType: match[1], data: match[2] } }],
           },
         ],
-        json: true,
         mode: "vision",
       });
       const json = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);

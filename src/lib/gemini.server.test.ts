@@ -33,7 +33,11 @@ describe("generateGeminiContent", () => {
     expect(init.headers).toMatchObject({ "x-goog-api-key": "test-key" });
     expect(JSON.parse(String(init.body))).toMatchObject({
       systemInstruction: { parts: [{ text: "System prompt" }] },
-      generationConfig: { maxOutputTokens: 1_024, responseMimeType: "application/json" },
+      generationConfig: {
+        maxOutputTokens: 2_048,
+        thinkingConfig: { thinkingBudget: 128 },
+        responseMimeType: "application/json",
+      },
     });
   });
 
@@ -68,5 +72,53 @@ describe("generateGeminiContent", () => {
     expect(fetchMock.mock.calls[0]?.[0]).toContain(
       "/models/gemini-3-flash-preview:generateContent",
     );
+    const body = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body));
+    expect(body.generationConfig).toEqual({
+      maxOutputTokens: 2_048,
+      thinkingConfig: { thinkingBudget: 128 },
+    });
+  });
+
+  it("hides thought parts and rejects truncated responses", async () => {
+    vi.stubEnv("GEMINI_API_KEY", "test-key");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            candidates: [
+              {
+                finishReason: "STOP",
+                content: { parts: [{ thought: true, text: "Internal plan" }, { text: "Answer" }] },
+              },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            candidates: [
+              { finishReason: "MAX_TOKENS", content: { parts: [{ text: "Partial answer" }] } },
+            ],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      generateGeminiContent({
+        system: "System prompt",
+        contents: [{ role: "user", parts: [{ text: "Hello" }] }],
+      }),
+    ).resolves.toBe("Answer");
+    await expect(
+      generateGeminiContent({
+        system: "System prompt",
+        contents: [{ role: "user", parts: [{ text: "Hello" }] }],
+      }),
+    ).rejects.toMatchObject({ code: "INCOMPLETE_RESPONSE" });
   });
 });

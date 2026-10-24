@@ -4,6 +4,7 @@ const REQUEST_TIMEOUT_MS = 45_000;
 
 interface GeminiPart {
   text?: string;
+  thought?: boolean;
   inlineData?: {
     mimeType: string;
     data: string;
@@ -18,6 +19,7 @@ interface GeminiContent {
 interface GeminiResponse {
   candidates?: Array<{
     content?: { parts?: GeminiPart[] };
+    finishReason?: string;
   }>;
   error?: {
     code?: number;
@@ -72,7 +74,8 @@ export async function generateGeminiContent({
           systemInstruction: { parts: [{ text: system }] },
           contents,
           generationConfig: {
-            maxOutputTokens: 1_024,
+            maxOutputTokens: 2_048,
+            thinkingConfig: { thinkingBudget: 128 },
             ...(json ? { responseMimeType: "application/json" } : {}),
           },
         }),
@@ -101,8 +104,14 @@ export async function generateGeminiContent({
     );
   }
 
-  const text = payload.candidates?.[0]?.content?.parts
-    ?.map((part) => part.text ?? "")
+  const candidate = payload.candidates?.[0];
+  if (candidate?.finishReason === "MAX_TOKENS") {
+    throw new GeminiError("Gemini exhausted its output budget", 502, "INCOMPLETE_RESPONSE");
+  }
+
+  const text = candidate?.content?.parts
+    ?.filter((part) => part.thought !== true)
+    .map((part) => part.text ?? "")
     .join("")
     .trim();
   if (!text) throw new GeminiError("Gemini returned no text", 502, "EMPTY_RESPONSE");
