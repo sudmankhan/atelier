@@ -1,7 +1,7 @@
 // Pure shop output: cut list (rough vs finished stock) and saw/drill angle schedule.
 // Derived from the same geometry as the 3D model. Units cm / degrees.
 import type { ChairParams } from "./params";
-import { computeGeometry, BACK_LENGTH, FRONT_RAKE, SEAT_TILT_DEG } from "./geometry";
+import { backBowCm, computeGeometry, BACK_LENGTH, FRONT_RAKE, SEAT_TILT_DEG } from "./geometry";
 import type { JapaneseParams } from "./japanese/params";
 import { computeJapanese, CREST_BOW, POST_LEAN, SLAB_T } from "./japanese/geometry";
 
@@ -44,7 +44,7 @@ export function kangarooShop(p: ChairParams): ShopSheet {
   const cuts = [
     row("Front leg", 2, { l: g.frontLegLength + TENON, w: 5, t: 3.8 }, "Grain straight along the length; tenon into the seat rail."),
     row("Seat rail (side)", 2, { l: p.seatDepth, w: 5, t: 3.8 }, "Mortised for front leg and back post."),
-    row("Back post", 2, { l: BACK_LENGTH + TENON, w: 5 + p.backCurve * 3, t: 3.8 }, p.backCurve > 0 ? "Rough width includes the bow — pick stock whose grain follows the curve." : "Straight post."),
+    row("Back post", 2, { l: BACK_LENGTH + TENON, w: 5 + backBowCm(p), t: 3.8 }, p.backCurve > 0 ? "Rough width includes the bow — pick stock whose grain follows the curve." : "Straight post."),
     row("Rear support", 2, { l: g.rearLegLength + TENON, w: 5, t: 3.8 }, "Tenons into the back post."),
     row("Stretcher rail", 3, { l: g.railLength + 2 * TENON, w: 2.8, t: 2.8 }, "Length includes a tenon at each end; turn or round after cutting joints."),
     row("Seat frame side", 2, { l: p.seatDepth - 2, w: 3, t: 3.2 }, "Groove for cane after assembly."),

@@ -589,7 +589,6 @@ function Ask() {
           <Send className="h-4 w-4" />
         </button>
       </form>
-      {!voice && <div className="px-4 pb-2 text-[10px] text-muted-foreground">Silent text mode — voice narration isn't configured.</div>}
     </div>
   );
 }

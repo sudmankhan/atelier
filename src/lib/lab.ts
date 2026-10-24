@@ -95,8 +95,3 @@ export function evaluateLab(d: LabDesign): LabResult[] {
   if (d.splay > 14) out.push({ area: "Parts", level: "warn", title: `Splay ${d.splay}°`, detail: "Feet stick out into walkways, and the angled socket leaves short grain at the seat edge." });
   return out;
 }
-
-export function labScore(rs: LabResult[]) {
-  const pts = rs.reduce((s, r) => s + (r.level === "good" ? 2 : r.level === "warn" ? 1 : 0), 0);
-  return Math.round((pts / (rs.length * 2)) * 100);
-}

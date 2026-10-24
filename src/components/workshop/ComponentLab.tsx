@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Maximize2, Minimize2, ScanEye, X } from "lucide-react";
-import { BLANK, JOINT_FACTOR, WOODS, evaluateLab, labScore, tipMargin, type Back, type Base, type LabDesign, type Level } from "@/lib/lab";
+import { BLANK, JOINT_FACTOR, WOODS, evaluateLab, tipMargin, type Back, type Base, type LabDesign, type Level } from "@/lib/lab";
 import { StudioShell } from "@/components/three/StudioCanvas";
 import { LabModel } from "@/components/three/LabModel";
 import { cn } from "@/lib/utils";
@@ -30,7 +30,6 @@ export function ComponentLab() {
   const [panel, setPanel] = useState(true);
   const set = <K extends keyof LabDesign>(k: K, v: LabDesign[K]) => { setD((x) => ({ ...x, [k]: v })); };
   const results = evaluateLab(d);
-  const score = labScore(results);
   const tips = tested && tipMargin(d) < 0;
   return (
     <main className="relative min-w-0 flex-1 overflow-hidden">
@@ -93,20 +92,24 @@ export function ComponentLab() {
       )}
 
       {tested && (
-        <ResultsCard results={results} score={score} note={WOODS[d.wood].note} tips={tips} onClose={() => setTested(false)} />
+        <ResultsCard results={results} note={WOODS[d.wood].note} tips={tips} onClose={() => setTested(false)} />
       )}
     </main>
   );
 }
 
-function ResultsCard({ results, score, note, tips, onClose }: { results: ReturnType<typeof evaluateLab>; score: number; note: string; tips: boolean; onClose: () => void }) {
+function ResultsCard({ results, note, tips, onClose }: { results: ReturnType<typeof evaluateLab>; note: string; tips: boolean; onClose: () => void }) {
   const [min, setMin] = useState(false);
+  const counts = { good: 0, warn: 0, bad: 0 };
+  for (const r of results) counts[r.level]++;
   return (
     <div className="absolute z-10 right-5 bottom-5 w-80 rounded-xl border hairline bg-card/95 p-4 shadow-sm backdrop-blur">
       <div className="flex items-center justify-between">
         <div className="eyebrow">Test results</div>
         <div className="flex items-center gap-2">
-          <span className={cn("font-mono text-sm", score >= 80 ? "text-teal" : score >= 50 ? "text-walnut" : "text-alert")}>{score}/100</span>
+          <span className="font-mono text-[11px]">
+            <span className="text-teal">{counts.good} good</span> · <span className="text-walnut">{counts.warn} to watch</span> · <span className="text-alert">{counts.bad} problem{counts.bad === 1 ? "" : "s"}</span>
+          </span>
           <button onClick={() => setMin(!min)} aria-label="Minimize results">{min ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}</button>
           <button onClick={onClose} aria-label="Close results"><X className="h-3.5 w-3.5" /></button>
         </div>

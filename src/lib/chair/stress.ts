@@ -1,7 +1,7 @@
 // Pure grain + joint-stress model for the 3D overlay. Rule-of-thumb mechanics,
 // not FEA: loads are fixed teaching assumptions, results are compared to the original.
 import { BASELINE, type ChairParams } from "./params";
-import { computeGeometry, lerp2, type V2 } from "./geometry";
+import { backBowCm, computeGeometry, lerp2, type V2 } from "./geometry";
 import { J_BASELINE, type JapaneseParams } from "./japanese/params";
 import { computeJapanese, CREST_BOW } from "./japanese/geometry";
 
@@ -67,7 +67,7 @@ export function kangarooStress(p: ChairParams): StressReport {
     const ratio = mo / base;
     return { id, label, pos, moment: r1(mo), ratio: r1(ratio * 100) / 100, level: levelOf(ratio), why };
   };
-  const postSag = p.backCurve * 3;
+  const postSag = backBowCm(p);
   const postRunout = runoutOf(postSag, g.backrestLength + 20);
   return {
     pins: [

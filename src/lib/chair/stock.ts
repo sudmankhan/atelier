@@ -61,7 +61,7 @@ export function matchStock(b: Board, cuts: CutRow[]): StockMatch[] {
         verdict = "warn";
         reason = `Fits ${y.n} of the ${c.qty} you need — find another board for the rest.`;
       } else {
-        reason = `Yields ${y.n} (need ${c.qty})${y.layers > 1 ? ` — requires resawing into ${y.layers} layers` : ""}.`;
+        reason = `Yields ${y.n} (need ${c.qty}).`;
         if (b.grainSlope === null && loadBearing) { verdict = "warn"; reason += " Grain slope unknown: check runout before trusting it as a structural part."; }
       }
       return { part: c.part, qty: c.qty, yieldCount: y.n, covers, verdict, reason, rough: c.rough, placements, wastePct, loadBearing };

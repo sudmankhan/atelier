@@ -11,6 +11,9 @@ export const SEAT_TILT_DEG = 6; // seat slopes down toward the back
 export const BACK_LENGTH = 60; // length of the back post above the seat
 export const FRAME_T = 3.6; // side-frame thickness
 export const FRONT_RAKE = 5; // front foot sits ahead of the seat front
+/** cm of back-post bow per unit of the backCurve slider; the only place this scale lives. */
+export const BACK_BOW_PER_UNIT = 7;
+export const backBowCm = (p: Pick<ChairParams, "backCurve">) => p.backCurve * BACK_BOW_PER_UNIT;
 
 const rad = (d: number) => (d * Math.PI) / 180;
 const deg = (r: number) => (r * 180) / Math.PI;
@@ -68,7 +71,7 @@ export function computeGeometry(p: ChairParams): ChairGeometry {
   const seatRear = add(seatFront, seatDir, -p.seatDepth);
   const frontFoot: V2 = { z: halfD + FRONT_RAKE, y: 0 };
   const backTop = add(seatRear, backDir, BACK_LENGTH);
-  const backMid = add(add(seatRear, backDir, BACK_LENGTH / 2), backNormalRear, p.backCurve * 7);
+  const backMid = add(add(seatRear, backDir, BACK_LENGTH / 2), backNormalRear, backBowCm(p));
   const rearJoint = add(seatRear, seatDir, 8);
   const rearFoot: V2 = { z: seatRear.z - p.supportSpacing, y: 0 };
   const frontRail = lerp2(frontFoot, seatFront, 0.3);

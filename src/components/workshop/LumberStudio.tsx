@@ -6,6 +6,7 @@ import { KERF, partIdFor, RUNOUT_LIMIT, type Board } from "@/lib/chair/stock";
 import { allocate, type Allocation, type StockBoard } from "@/lib/chair/allocate";
 import { Plus, X } from "lucide-react";
 import { inspectLumber, type LumberReport } from "@/lib/lumber.functions";
+import { GRAIN_LOOK_TEXT } from "@/lib/lumberReport";
 import type { ChairParams } from "@/lib/chair/params";
 import type { JapaneseParams } from "@/lib/chair/japanese/params";
 import { useWorkshop, type AnyPartId } from "./store";
@@ -65,7 +66,7 @@ export function LumberStudio() {
     const r = await inspect({ data: { image: url, board: { l: b.l, w: b.w, t: b.t }, typology: w.typology, parts: cuts.map((c) => c.part) } }).catch(() => null);
     setBusy(false);
     if (!r || !r.ok) { setErr(r?.error ?? "Couldn't inspect the photo."); return; }
-    setReport(r.report); // grain is never applied automatically — user must confirm below
+    setReport(r.report);
   }
 
   function pick(part: string) {
@@ -134,20 +135,15 @@ export function LumberStudio() {
         )}
         {report && report.kind === "usable" && (
           <div className="mt-2 space-y-1.5">
-            <div><span className="font-medium">{report.species}</span> · {report.cut} · grain {report.grainSlope ? `≈1 in ${report.grainSlope}` : "unclear"} <span className="text-muted-foreground">(model says "{report.modelConfidence}" — not a measured probability)</span></div>
+            <div><span className="font-medium">{report.species}</span> · {report.cut} · grain {report.grain ? GRAIN_LOOK_TEXT[report.grain] : "unclear"} <span className="text-muted-foreground">(model says "{report.modelConfidence}" — not a measured probability)</span></div>
             {report.defects.length > 0 && <div className="text-walnut">Defects: {report.defects.join(", ")}</div>}
             {report.bestFor.length > 0 && <div className="text-teal">Good for: {report.bestFor.join(", ")}</div>}
             {report.avoidFor.length > 0 && <div className="text-alert">Avoid for: {report.avoidFor.join(", ")}</div>}
             <p className="text-muted-foreground">{report.advice}</p>
-            {report.grainSlope !== null && b.grainSlope !== report.grainSlope && (
-              <button onClick={() => set("grainSlope", report.grainSlope)} className="rounded-md border hairline px-2 py-1 text-[11px]">
-                Use 1 in {report.grainSlope} for {b.id}{b.grainSlope ? ` (replaces your 1 in ${b.grainSlope})` : ""}
-              </button>
-            )}
-            <p className="text-[10px] text-muted-foreground">Judged from a photo by an AI that can be wrong — confirm by splitting or reading the edge grain before cutting structural parts.</p>
+            <p className="text-[10px] text-muted-foreground">Judged from a photo by an AI that can be wrong. It never changes the board's grain setting: measure the slope yourself (scribe a line along a split or a pore line) and type it in above.</p>
           </div>
         )}
-        {!photo && <p className="mt-1 text-muted-foreground">Optional: snap the selected board's face in good light. The grain slope it reads feeds that board's allocation.</p>}
+        {!photo && <p className="mt-1 text-muted-foreground">Optional: snap the selected board's face in good light. You get a species guess, visible defects and a rough grain impression — advice only, never a number fed into the layout.</p>}
       </div>
 
       <div>

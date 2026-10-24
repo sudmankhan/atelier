@@ -45,7 +45,7 @@ export function checkJoint(j: JointSpec, tenonT: number, tenonL: number): JointC
     out.push({
       rule: "Tenon ≈ ⅓ of the member's thickness",
       value: `${r1(tenonT)} / ${j.tenonMember} cm = ${Math.round(ratio * 100)}%`,
-      level: ratio < 0.25 ? "bad" : ratio < 0.3 || ratio > 0.4 ? "warn" : ratio > 0.5 ? "bad" : "good",
+      level: ratio < 0.25 || ratio > 0.5 ? "bad" : ratio < 0.3 || ratio > 0.4 ? "warn" : "good",
       advice: ratio < 0.3 ? "Tenon is thin: it can snap at the shoulder. Thicken toward ⅓." : ratio > 0.4 ? "Tenon is fat: the cheeks around it in the mortise get thin. Go back toward ⅓." : "Classic proportion — tenon and the walls around it share the load evenly.",
     });
   } else {

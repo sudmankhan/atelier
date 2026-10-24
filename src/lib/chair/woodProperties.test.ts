@@ -8,6 +8,7 @@ const EXPECT: Record<WoodId, { green: number[]; "12pct": number[] }> = {
   ash: { green: [9500, 1.44, 65.5, 9928, 9, 4], "12pct": [15400, 1.74, 106.2, 11997, 9, 4] },
   walnut: { green: [9500, 1.42, 65.5, 9791, 11, 6], "12pct": [14600, 1.68, 100.7, 11583, 11, 6] },
   pine: { green: [4900, 0.99, 33.8, 6826, 12, 7], "12pct": [8600, 1.24, 59.3, 8550, 12, 7] },
+  teak: { green: [11600, 1.37, 80.0, 9446, 25, 21], "12pct": [14600, 1.55, 100.7, 10687, 25, 21] },
 };
 
 describe("USDA wood properties", () => {
@@ -21,7 +22,7 @@ describe("USDA wood properties", () => {
         expect(v.source.E_original).toBe(e);
         expect(v.MOR_MPa!).toBeCloseTo(morSI!, 1);
         expect(Math.abs(v.E_MPa! - eSI!)).toBeLessThan(1);
-        expect(v.source.table).toBe("Table 5–3b");
+        expect(v.source.table).toBe(id === "teak" ? "Table 5–4b" : "Table 5–3b");
         expect(v.source.pdfPage).toBe(pg);
         expect(v.source.crossCheck.pdfPage).toBe(xpg);
         expect(v.source.originalUnits).toEqual({ MOR: "lbf/in²", E: "10^6 lbf/in²" });

@@ -44,7 +44,7 @@ function Index() {
         <div className="relative z-10 px-10 pb-16 md:pl-16">
           <div className="eyebrow animate-rise">An interactive chairmaking studio</div>
           <h1 className="mt-6 text-5xl leading-[1.02] animate-rise md:text-7xl" style={{ animationDelay: "0.1s" }}>
-            Design chairs that <em className="text-walnut">hold up.</em>
+            See <em className="text-walnut">why</em> chairs hold up.
           </h1>
           <p className="mt-7 max-w-md text-muted-foreground animate-rise" style={{ animationDelay: "0.25s" }}>
             Learn chair design the way woodworkers do: by changing a real chair and watching what happens to its joints, grain and balance — then building your own and taking it to the shop.

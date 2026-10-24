@@ -3,13 +3,21 @@ import { z } from "zod";
 /** Image-suitability verdicts. Only "usable" may carry grain numbers or part advice. */
 export const SUITABILITY = ["usable", "insufficient_detail", "synthetic_or_non_wood", "uncertain"] as const;
 export type Suitability = (typeof SUITABILITY)[number];
+/** Qualitative grain impression only: a photo cannot measure slope of grain, so no number is ever produced. */
+export const GRAIN_LOOKS = ["straight", "moderate", "steep"] as const;
+export type GrainLook = (typeof GRAIN_LOOKS)[number];
+export const GRAIN_LOOK_TEXT: Record<GrainLook, string> = {
+  straight: "looks straight",
+  moderate: "some visible drift — check it",
+  steep: "looks steep — verify with a scribe line before using for legs or posts",
+};
 
 const RawSchema = z.object({
   suitability: z.enum(SUITABILITY),
   suitabilityReason: z.string().max(400).default(""),
   species: z.string().max(60).optional().nullable(),
   cut: z.enum(["flat-sawn", "quarter-sawn", "rift-sawn", "unknown"]).optional().nullable(),
-  grainSlope: z.number().finite().positive().max(200).optional().nullable(),
+  grain: z.enum(GRAIN_LOOKS).optional().nullable(),
   defects: z.array(z.string().max(80)).max(10).optional().nullable(),
   bestFor: z.array(z.string()).optional().nullable(),
   avoidFor: z.array(z.string()).optional().nullable(),
@@ -22,7 +30,7 @@ export interface UsableReport {
   reason: string;
   species: string;
   cut: string;
-  grainSlope: number | null; // N in "1 in N"; an unconfirmed visual estimate
+  grain: GrainLook | null; // visual impression only; never written to a board
   defects: string[];
   bestFor: string[];
   avoidFor: string[];
@@ -71,10 +79,10 @@ export function parseLumberReport(text: string, allowedParts: string[]): LumberR
     reason: clean(p.suitabilityReason),
     species: clean(p.species ?? "") || "unknown",
     cut: p.cut ?? "unknown",
-    grainSlope: p.grainSlope != null ? Math.round(p.grainSlope) : null,
+    grain: p.grain ?? null,
     defects: (p.defects ?? []).map(clean).slice(0, 6),
     // No grain reading → no part recommendations (avoid-lists are still allowed: they are conservative).
-    bestFor: p.grainSlope != null ? best : [],
+    bestFor: p.grain != null ? best : [],
     avoidFor: avoid,
     advice: clean(p.advice ?? ""),
     modelConfidence: p.modelConfidence ?? "low",
