@@ -5,7 +5,9 @@ import { ArrowUpRight, ChevronLeft, ChevronRight, Loader2, Send, Volume2, Volume
 import { PARTS, PART_ORDER, type PartId } from "@/lib/chair/parts";
 import { J_PARTS, J_PART_ORDER, type JPartId } from "@/lib/chair/japanese/parts";
 import { computeGeometry, type ChairGeometry } from "@/lib/chair/geometry";
-import { computeJapanese, type JGeometry } from "@/lib/chair/japanese/geometry";
+import { computeJapanese, POST_LEAN, type JGeometry } from "@/lib/chair/japanese/geometry";
+import { japaneseMass, kangarooMass } from "@/lib/chair/chairMass";
+import { calculatedObservations } from "@/lib/chair/calculated";
 import { BASELINE, type ChairParams } from "@/lib/chair/params";
 import { J_BASELINE, type JapaneseParams } from "@/lib/chair/japanese/params";
 import type { Observation } from "@/lib/chair/consequences";
@@ -149,12 +151,13 @@ function Tipping() {
   const isK = w.typology === "kangaroo";
   const params = w.section === "design" ? w.params : isK ? BASELINE : J_BASELINE;
   if (isK) {
-    const g = computeGeometry(params as ChairParams);
-    return <div className="p-5"><StaticsPanel pivotZ={g.rearFoot.z} seatRearZ={g.seatRear.z} seatFrontZ={g.seatFront.z} seatHeight={(params as ChairParams).seatHeight} /></div>;
+    const kp = params as ChairParams;
+    const g = computeGeometry(kp);
+    return <div className="p-5"><StaticsPanel pivotZ={g.rearFoot.z} seatRearZ={g.seatRear.z} seatFrontZ={g.seatFront.z} seatHeight={kp.seatHeight} chair={kangarooMass(kp)} reclineDeg={g.backRecline} pushHeightCm={g.backTop.y} /></div>;
   }
   const jp = params as JapaneseParams;
   const g = computeJapanese(jp);
-  return <div className="p-5"><StaticsPanel pivotZ={g.rearFoot.z} seatRearZ={-jp.seatDepth / 2} seatFrontZ={jp.seatDepth / 2} seatHeight={jp.seatHeight} /></div>;
+  return <div className="p-5"><StaticsPanel pivotZ={g.rearFoot.z} seatRearZ={-jp.seatDepth / 2} seatFrontZ={jp.seatDepth / 2} seatHeight={jp.seatHeight} chair={japaneseMass(jp)} reclineDeg={POST_LEAN} pushHeightCm={jp.seatHeight + jp.backHeight} /></div>;
 }
 
 function Inspect() {
@@ -458,6 +461,7 @@ function Ask() {
             changed: c.changed,
             observations: [
               ...c.geometry.map((o) => `[CALCULATED] ${o.title}: ${o.detail}`),
+              ...calculatedObservations(w.typology, w.params as ChairParams | JapaneseParams),
               ...c.craft.map((o) => `[HEURISTIC] ${o.title}: ${o.detail}`),
             ],
           },

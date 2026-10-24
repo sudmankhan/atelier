@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_MOISTURE, WOOD_PROPERTIES, woodValue, type WoodId } from "./woodProperties";
+import {
+  DEFAULT_MOISTURE, DURATION_SAFETY_FACTOR, MOR_COV, WOOD_PROPERTIES, dccFromShrinkage, density12, referenceStressMPa, woodForChoice, woodValue, type WoodId,
+} from "./woodProperties";
 import { WOODS } from "../lab";
 
 // [MOR psi, E Mpsi, MOR MPa, E MPa, 5–3b page, 5–3a page] per USDA FPL-GTR-282 Table 5–3
@@ -39,5 +41,51 @@ describe("USDA wood properties", () => {
   });
   it("covers every Lab wood id", () => {
     for (const id of Object.keys(WOODS)) expect(WOOD_PROPERTIES[id as WoodId]).toBeDefined();
+  });
+});
+
+describe("specific gravity, shrinkage and reference stress", () => {
+  // SG from Tables 5–3b / 5–4b at 12% MC; C_R, C_T from Table 13–5 (p. 13–17)
+  const SG: Record<WoodId, number> = { oak: 0.68, ash: 0.6, walnut: 0.55, pine: 0.35, teak: 0.55 };
+  const DCC: Partial<Record<WoodId, [number, number]>> = {
+    oak: [0.00194, 0.00376], ash: [0.00169, 0.00274], walnut: [0.0019, 0.00274], pine: [0.00071, 0.00212],
+  };
+  for (const id of Object.keys(SG) as WoodId[]) {
+    it(`${id} SG and density`, () => {
+      expect(WOOD_PROPERTIES[id].specificGravity12).toBe(SG[id]);
+      expect(density12(id)).toBeCloseTo(SG[id] * 1120, 6);
+    });
+  }
+  for (const [id, [cr, ct]] of Object.entries(DCC) as [WoodId, [number, number]][]) {
+    it(`${id} dimensional change coefficients match Table 13–5`, () => {
+      expect(WOOD_PROPERTIES[id].shrinkage.C_R).toBe(cr);
+      expect(WOOD_PROPERTIES[id].shrinkage.C_T).toBe(ct);
+    });
+  }
+  it("teak coefficients are derived with Eq. 13–2 and land in the hardwood range", () => {
+    const t = WOOD_PROPERTIES.teak.shrinkage;
+    expect(t.C_T).toBeCloseTo(5.8 / (3000 - 5.8 * 20), 8);
+    expect(t.C_R).toBeLessThan(t.C_T);
+    expect(t.C_T).toBeGreaterThan(0.0015);
+    expect(t.C_T).toBeLessThan(0.0025);
+    expect(t.source).toMatch(/Derived/);
+  });
+  it("Eq. 13–2 reproduces a tabulated coefficient (white oak tangential 10.5% → ≈0.00365)", () => {
+    // Table 4–3 white oak tangential shrinkage 10.5%; the table's own derivation lands near Table 13–5.
+    expect(dccFromShrinkage(10.5)).toBeGreaterThan(0.0035);
+    expect(dccFromShrinkage(10.5)).toBeLessThan(0.0039);
+  });
+  it("reference stress = mean MOR × (1 − 1.645 × 0.16) ÷ 2.1", () => {
+    expect(MOR_COV).toBe(0.16);
+    expect(DURATION_SAFETY_FACTOR).toBe(2.1);
+    const mor = woodValue("oak").MOR_MPa!;
+    expect(referenceStressMPa("oak")).toBeCloseTo((mor * (1 - 1.645 * 0.16)) / 2.1, 9);
+    expect(referenceStressMPa("oak")).toBeCloseTo(36.9, 0);
+  });
+  it("keyaki maps to oak only as a labelled stand-in", () => {
+    const k = woodForChoice("keyaki");
+    expect(k.id).toBe("oak");
+    expect(k.proxy).toBe(true);
+    expect(woodForChoice("teak")).toMatchObject({ id: "teak", proxy: false });
   });
 });

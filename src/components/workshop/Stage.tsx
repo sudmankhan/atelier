@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { japaneseStress, kangarooStress } from "@/lib/chair/stress";
 import type { ChairParams } from "@/lib/chair/params";
 import type { JapaneseParams } from "@/lib/chair/japanese/params";
+import { ProvenanceBadge } from "./ProvenanceBadge";
 
 function ToolBtn({ active, onClick, children, label }: { active?: boolean; onClick: () => void; children: React.ReactNode; label: string }) {
   return (
@@ -202,7 +203,7 @@ export function Stage() {
       )}
       {stress && !focus && stressPanel && (
         <div className="absolute right-5 bottom-12 z-20 w-64 max-h-[45%] overflow-y-auto rounded-lg border hairline bg-card/95 p-4 text-xs shadow-sm backdrop-blur">
-          <div className="flex items-center justify-between"><div className="eyebrow">Grain & joint stress</div><button onClick={() => setStressPanel(false)} aria-label="Minimize stress notes"><Minimize2 className="h-3 w-3" /></button></div>
+          <div className="flex items-center justify-between"><div className="flex items-center gap-2"><div className="eyebrow">Grain & joint stress</div><ProvenanceBadge kind="assumption" topic="stress" /></div><button onClick={() => setStressPanel(false)} aria-label="Minimize stress notes"><Minimize2 className="h-3 w-3" /></button></div>
           {exploded && <p className="mt-2 text-alert">Close the exploded view to see markers on the chair.</p>}
           <ul className="mt-3 space-y-3">
             {stress.pins.map((p) => (
@@ -210,10 +211,14 @@ export function Stage() {
                 <div className="flex justify-between gap-2 font-medium">
                   <span>{p.label}</span>
                   <span className={cn("font-mono", p.level === "high" ? "text-alert" : p.level === "watch" ? "text-walnut" : "text-teal")}>
-                    {p.ratio === 1 ? "original" : `${p.ratio > 1 ? "+" : ""}${Math.round((p.ratio - 1) * 100)}%`}
+                    {Math.round(p.utilisation * 100)}% of ref
                   </span>
                 </div>
+                <p className="mt-0.5 font-mono text-[10px]">
+                  {p.moment} N·m on {p.section} → {p.stressMPa} MPa (ref {p.refMPa} MPa){p.ratio !== 1 && ` · moment ${p.ratio > 1 ? "+" : ""}${Math.round((p.ratio - 1) * 100)}% vs original`}
+                </p>
                 <p className="mt-0.5 text-muted-foreground">{p.why}</p>
+                <p className="mt-0.5 text-[10px] text-measure">{p.how}</p>
               </li>
             ))}
           </ul>
@@ -222,7 +227,8 @@ export function Stage() {
               <p key={g.id}><span className={cn("font-medium", g.level === "high" && "text-alert")}>{g.label}:</span> <span className="text-muted-foreground">{g.note}</span></p>
             ))}
           </div>
-          <p className="mt-3 text-[10px] text-measure">Arrows = grain direction. Dots = joints (green original, amber +10–30%, red &gt;30%). {stress.assumptions}</p>
+          {stress.wood.proxy && <p className="mt-3 text-[10px] text-walnut">{stress.wood.note}</p>}
+          <p className="mt-3 text-[10px] text-measure">Arrows = grain direction. Dots = joints: green under half the reference stress, amber up to it, red above it. The reference is clear-wood strength (USDA Wood Handbook) taken to its 5th percentile and divided by 2.1 — an educational level, not a safe-load rating. {stress.assumptions}</p>
         </div>
       )}
 

@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { JOINTS, checkJoint, jointGrade, type JointSpec, type Level } from "@/lib/chair/joinery";
+import { trialJointStress } from "@/lib/chair/stress";
+import type { ChairParams } from "@/lib/chair/params";
+import type { JapaneseParams } from "@/lib/chair/japanese/params";
 import { useWorkshop } from "./store";
 import { cn } from "@/lib/utils";
+import { ProvenanceBadge } from "./ProvenanceBadge";
 
 const tone: Record<Level, string> = { good: "text-teal", warn: "text-walnut", bad: "text-alert" };
 const dot: Record<Level, string> = { good: "bg-teal", warn: "bg-walnut", bad: "bg-alert" };
@@ -29,9 +33,11 @@ export function JointInspector() {
 }
 
 function JointEditor({ j }: { j: JointSpec }) {
+  const w = useWorkshop();
   const [t, setT] = useState(j.tenonT);
   const [l, setL] = useState(j.tenonL);
   const checks = checkJoint(j, t, l);
+  const load = trialJointStress(w.typology, w.params as ChairParams | JapaneseParams, j.id, t);
   const grade = jointGrade(checks);
   const round = j.kind === "round-tenon";
   // Cross-section SVG: mortised member seen end-on with the tenon cut through it.
@@ -66,7 +72,22 @@ function JointEditor({ j }: { j: JointSpec }) {
       </div>
       <Slider label={round ? "Tenon diameter" : "Tenon thickness"} v={t} min={0.4} max={j.mortiseMember - 0.2} step={0.1} on={setT} />
       <Slider label="Tenon length" v={l} min={0.8} max={j.mortiseDepthMax + 1.5} step={0.1} on={setL} />
+      {load && (
+        <div className="rounded-md border hairline p-2.5 text-xs">
+          <div className="flex items-center gap-2">
+            <span className={cn("h-2 w-2 rounded-full", load.level === "high" ? "bg-alert" : load.level === "watch" ? "bg-walnut" : "bg-teal")} />
+            <span className="flex-1">Bending stress in this tenon, current design</span>
+            <span className="font-mono text-[11px]">{Math.round(load.utilisation * 100)}% of ref</span>
+            <ProvenanceBadge kind="assumption" topic="stress" />
+          </div>
+          <div className="mt-1 font-mono text-[11px] text-muted-foreground">
+            σ = M / S = {load.moment.toFixed(1)} N·m / {load.sectionCm3.toFixed(2)} cm³ = {load.stressMPa.toFixed(1)} MPa · reference {load.refMPa.toFixed(1)} MPa
+          </div>
+          <div className="mt-1 text-[11px] text-muted-foreground">{load.how} Same calculation as the stress pins on the 3D chair.</div>
+        </div>
+      )}
       <div className="space-y-2">
+        <div className="flex items-center gap-2"><span className="eyebrow">Shop rules</span><ProvenanceBadge kind="rule" topic="joints" /></div>
         {checks.map((c) => (
           <div key={c.rule} className="rounded-md border hairline p-2.5">
             <div className="flex items-center gap-2 text-xs">

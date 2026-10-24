@@ -57,7 +57,7 @@ export function StressOverlay({ report }: { report: StressReport }) {
           </mesh>
           <Html position={[6, 3, 0]} distanceFactor={1.2} zIndexRange={[5, 0]} style={{ pointerEvents: "none" }}>
             <div className="whitespace-nowrap rounded border hairline bg-card/95 px-1.5 py-0.5 font-mono text-[10px] shadow-sm">
-              <span style={{ color: COL[p.level] }}>●</span> {p.moment} N·m · {p.ratio === 1 ? "original" : `${p.ratio > 1 ? "+" : ""}${Math.round((p.ratio - 1) * 100)}%`}
+              <span style={{ color: COL[p.level] }}>●</span> {p.stressMPa} MPa · {Math.round(p.utilisation * 100)}% of ref
             </div>
           </Html>
         </group>

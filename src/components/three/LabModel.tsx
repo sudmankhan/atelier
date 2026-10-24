@@ -4,7 +4,7 @@ import "./r3fDevSourceShim";
 import { useMemo } from "react";
 import * as THREE from "three";
 import { Html } from "@react-three/drei";
-import type { LabDesign } from "@/lib/lab";
+import { labJointSize, type LabDesign } from "@/lib/lab";
 import { labRearPivotZ } from "@/lib/statics";
 
 const S = 0.01;
@@ -32,13 +32,11 @@ function Member({ a, b, t, w, color, xray, round }: { a: V; b: V; t: number; w?:
 /** A joint: the hidden part (tenon, dowel, wedge or screw) at point p, entering along dir. */
 function Joint({ p, dir, d, xray, label }: { p: V; dir: V; d: LabDesign; xray: boolean; label?: string }) {
   const color = JOINT_COLOR[d.joint];
-  const len = d.joint === "screw" ? 6 : d.joint === "dowel" ? 4 : 3.5;
-  const t = d.joint === "screw" ? 0.4 : d.joint === "dowel" ? 0.9 : d.legThickness / 3;
+  const { len, t, w, round } = labJointSize(d);
   const b: V = [p[0] + dir[0] * len, p[1] + dir[1] * len, p[2] + dir[2] * len];
-  const round = d.joint !== "mt";
   return (
     <group>
-      {xray && <Member a={p} b={b} t={t} w={d.joint === "mt" ? d.legThickness * 0.8 : undefined} color={color} xray={false} round={round} />}
+      {xray && <Member a={p} b={b} t={t} w={round ? undefined : w} color={color} xray={false} round={round} />}
       {xray && d.joint === "wedged" && <Member a={b} b={[b[0] + dir[0] * 0.6, b[1] + dir[1] * 0.6, b[2] + dir[2] * 0.6]} t={0.3} w={t * 1.6} color="#3a2a1e" xray={false} />}
       {!xray && (
         <mesh position={v(p)}>
