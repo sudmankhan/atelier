@@ -34,15 +34,28 @@ Plain prose only: no markdown, no asterisks, no headings, no bullet lists; short
 
 export const askMaster = createServerFn({ method: "POST" })
   .inputValidator((input: MentorInput) => {
-    if (!input || typeof input.question !== "string" || !input.question.trim()) throw new Error("Question required");
-    return { ...input, question: input.question.slice(0, 1200), history: (input.history ?? []).slice(-8) };
+    if (!input || typeof input.question !== "string" || !input.question.trim())
+      throw new Error("Question required");
+    return {
+      ...input,
+      question: input.question.slice(0, 1200),
+      history: (input.history ?? []).slice(-8),
+    };
   })
   .handler(async ({ data }) => {
     const { retrieveSync } = await import("@/lib/knowledge/retrieve");
-    const { generateChatCompletion, GatewayError } = await import("@lovable.dev/ai-gateway");
+    const { generateGeminiContent, geminiErrorKind } = await import("@/lib/gemini.server");
     const ctx = data.context;
-    const hits = retrieveSync(data.question, { partId: null, changedParams: ctx.changed, typology: ctx.typology }, 4);
-    const refs = hits.map((h, i) => `[${i + 1}] ${h.sourceTitle}\nTopic: ${h.topic}\n${h.principle} ${h.explanation}`).join("\n\n");
+    const hits = retrieveSync(
+      data.question,
+      { partId: null, changedParams: ctx.changed, typology: ctx.typology },
+      4,
+    );
+    const refs = hits
+      .map(
+        (h, i) => `[${i + 1}] ${h.sourceTitle}\nTopic: ${h.topic}\n${h.principle} ${h.explanation}`,
+      )
+      .join("\n\n");
     const paramText = Object.entries(ctx.params)
       .map(([k, v]) => `${k} ${v}`)
       .join(", ");
@@ -57,31 +70,34 @@ export const askMaster = createServerFn({ method: "POST" })
     ].join("\n");
 
     try {
-      const res = await generateChatCompletion({
-        model: "google/gemini-3.8-flash",
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "system", content: `CONTEXT\n${ctxText}\n\nREFERENCE EXCERPTS\n${refs || "(none matched)"}` },
-          ...data.history.map((m) => ({ role: m.role, content: m.content })),
-          { role: "user", content: data.question },
+      const answer = await generateGeminiContent({
+        system: `${SYSTEM}\n\nCONTEXT\n${ctxText}\n\nREFERENCE EXCERPTS\n${refs || "(none matched)"}`,
+        contents: [
+          ...data.history.map((message) => ({
+            role: message.role === "assistant" ? ("model" as const) : ("user" as const),
+            parts: [{ text: message.content }],
+          })),
+          { role: "user", parts: [{ text: data.question }] },
         ],
       });
-      const content = res.choices?.[0]?.message?.content;
-      const answer = typeof content === "string" ? content : "";
       return {
         ok: true as const,
-        answer: answer.replace(/\*\*?/g, "") || "I don't have a confident answer to that from my references.",
+        answer:
+          answer.replace(/\*\*?/g, "") ||
+          "I don't have a confident answer to that from my references.",
         sources: hits.map((h) => ({ title: h.sourceTitle, url: h.sourceUrl })) as MentorSource[],
       };
     } catch (e) {
       console.error("askMaster failed", e);
-      const code = e instanceof GatewayError ? e.code : "unknown";
+      const kind = geminiErrorKind(e);
       const msg =
-        code === "payment_required"
-          ? "The Master is unavailable — AI credits are exhausted for this workspace."
-          : code === "rate_limited"
+        kind === "not_configured"
+          ? "The Master is unavailable — GEMINI_API_KEY is not configured on the server."
+          : kind === "rate_limited"
             ? "The Master is busy. Please wait a moment and ask again."
-            : "The Master couldn't answer just now. Please try again.";
+            : kind === "timeout"
+              ? "The Master took too long to answer. Please try again."
+              : "The Master couldn't answer just now. Please try again.";
       return { ok: false as const, answer: msg, sources: [] as MentorSource[] };
     }
   });
@@ -96,18 +112,22 @@ export const speakMaster = createServerFn({ method: "POST" })
     const key = process.env["ELEVENLABS_API_KEY"];
     if (!key) return { ok: false as const, audio: null, reason: "not_configured" };
     const voice = process.env["ELEVENLABS_VOICE_ID"] || "JBFqnCBsd6RMkjVDRZzb";
-    const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_128`, {
-      method: "POST",
-      headers: { "xi-api-key": key, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text: data.text,
-        model_id: "eleven_multilingual_v2",
-        voice_settings: { stability: 0.7, similarity_boost: 0.75, style: 0.1, speed: 0.92 },
-      }),
-    });
+    const r = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voice}?output_format=mp3_44100_128`,
+      {
+        method: "POST",
+        headers: { "xi-api-key": key, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: data.text,
+          model_id: "eleven_multilingual_v2",
+          voice_settings: { stability: 0.7, similarity_boost: 0.75, style: 0.1, speed: 0.92 },
+        }),
+      },
+    );
     if (!r.ok) return { ok: false as const, audio: null, reason: `voice_error_${r.status}` };
     const bytes = new Uint8Array(await r.arrayBuffer());
     let bin = "";
-    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    for (let i = 0; i < bytes.length; i += 0x8000)
+      bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
     return { ok: true as const, audio: btoa(bin), reason: null };
   });

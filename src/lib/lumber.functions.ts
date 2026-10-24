@@ -25,42 +25,59 @@ Reply ONLY with JSON: {"species":string,"cut":string,"grainSlope":number|null,"d
 
 export const inspectLumber = createServerFn({ method: "POST" })
   .inputValidator((i: LumberInput) => {
-    if (!i || typeof i.image !== "string" || !/^data:image\/(jpeg|png|webp);base64,/.test(i.image)) throw new Error("Image required");
+    if (!i || typeof i.image !== "string" || !/^data:image\/(jpeg|png|webp);base64,/.test(i.image))
+      throw new Error("Image required");
     if (i.image.length > 6_000_000) throw new Error("Image too large");
     return { ...i, parts: (i.parts ?? []).slice(0, 20).map((p) => String(p).slice(0, 60)) };
   })
   .handler(async ({ data }) => {
-    const { generateChatCompletion, GatewayError } = await import("@lovable.dev/ai-gateway");
+    const { generateGeminiContent, geminiErrorKind } = await import("@/lib/gemini.server");
     const ctx = `Chair: ${data.typology === "japanese" ? "Japanese-inspired spindle-back" : "Kangaroo-inspired lounge chair"}. Board (rough): ${data.board.l} × ${data.board.w} × ${data.board.t} cm. PARTS: ${data.parts.join(", ")}.`;
     try {
-      const res = await generateChatCompletion({
-        model: "google/gemini-3.8-flash",
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content: [{ type: "text", text: ctx }, { type: "image_url", image_url: { url: data.image } }] },
+      const match = /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/.exec(data.image);
+      if (!match) throw new Error("Invalid image data URL");
+      const raw = await generateGeminiContent({
+        system: SYSTEM,
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: ctx }, { inlineData: { mimeType: match[1], data: match[2] } }],
+          },
         ],
-      } as Parameters<typeof generateChatCompletion>[0]);
-      const raw = res.choices?.[0]?.message?.content;
-      const text = typeof raw === "string" ? raw : "";
-      const json = text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1);
+        json: true,
+        mode: "vision",
+      });
+      const json = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
       const p = JSON.parse(json) as Partial<LumberReport>;
       const allowed = new Set(data.parts);
-      const slope = typeof p.grainSlope === "number" && p.grainSlope > 0 ? Math.round(p.grainSlope) : null;
+      const slope =
+        typeof p.grainSlope === "number" && p.grainSlope > 0 ? Math.round(p.grainSlope) : null;
       const report: LumberReport = {
         species: String(p.species ?? "unknown"),
         cut: String(p.cut ?? "unknown"),
         grainSlope: slope,
         defects: Array.isArray(p.defects) ? p.defects.map(String).slice(0, 6) : [],
-        bestFor: Array.isArray(p.bestFor) ? p.bestFor.map(String).filter((x) => allowed.has(x)) : [],
-        avoidFor: Array.isArray(p.avoidFor) ? p.avoidFor.map(String).filter((x) => allowed.has(x)) : [],
+        bestFor: Array.isArray(p.bestFor)
+          ? p.bestFor.map(String).filter((x) => allowed.has(x))
+          : [],
+        avoidFor: Array.isArray(p.avoidFor)
+          ? p.avoidFor.map(String).filter((x) => allowed.has(x))
+          : [],
         advice: String(p.advice ?? "").replace(/\*/g, ""),
         confidence: p.confidence === "high" || p.confidence === "medium" ? p.confidence : "low",
       };
       return { ok: true as const, report, error: null };
     } catch (e) {
       console.error("inspectLumber failed", e);
-      const code = e instanceof GatewayError ? e.code : "unknown";
-      const error = code === "payment_required" ? "AI credits are exhausted for this workspace." : code === "rate_limited" ? "Too many requests — wait a moment and try again." : "Couldn't read that photo. Try a clearer, well-lit shot of the board face.";
+      const kind = geminiErrorKind(e);
+      const error =
+        kind === "not_configured"
+          ? "Lumber inspection is not configured. Add GEMINI_API_KEY to the server environment."
+          : kind === "rate_limited"
+            ? "Too many requests — wait a moment and try again."
+            : kind === "timeout"
+              ? "The photo inspection took too long. Please try again with a smaller image."
+              : "Couldn't read that photo. Try a clearer, well-lit shot of the board face.";
       return { ok: false as const, report: null, error };
     }
   });
