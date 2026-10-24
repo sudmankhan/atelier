@@ -33,6 +33,10 @@ const sign = (n: number) => (n > 0 ? "+" : n < 0 ? "−" : "±") + f1(Math.abs(n
 
 export interface UserMeasurements {
   poplitealHeight?: number; // floor to back of knee, seated, cm
+  thighLength?: number; // buttock to knee crease, cm
+  hipBreadth?: number; // seated breadth, cm
+  torsoHeight?: number; // hip joint to shoulder, cm
+  massKg?: number; // used only to label the illustrative load path
 }
 
 export function computeConsequences(

@@ -16,7 +16,9 @@ describe("stress overlay", () => {
     expect(levelOf(1.4)).toBe("high");
   });
   it("taller Kangaroo seat raises racking on the rails", () => {
-    const r = kangarooStress({ ...BASELINE, seatHeight: 48 }).pins.find((p) => p.id === "railJoints")!;
+    const r = kangarooStress({ ...BASELINE, seatHeight: 48 }).pins.find(
+      (p) => p.id === "railJoints",
+    )!;
     expect(r.ratio).toBeGreaterThan(1.3);
   });
   it("deep back bow flags short grain past the 1:12 rule", () => {
@@ -25,5 +27,11 @@ describe("stress overlay", () => {
   });
   it("Japanese seat moves ~1 mm per 10 cm of depth", () => {
     expect(japaneseStress({ ...J_BASELINE, seatDepth: 44 }).movementMm).toBe(4.4);
+  });
+  it("uses the sitter load for displayed joint moments", () => {
+    const light = kangarooStress(BASELINE, 500).pins.find((p) => p.id === "frontJoint")!;
+    const heavy = kangarooStress(BASELINE, 1000).pins.find((p) => p.id === "frontJoint")!;
+    expect(heavy.moment).toBeGreaterThan(light.moment);
+    expect(heavy.ratio).toBe(light.ratio);
   });
 });

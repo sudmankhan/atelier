@@ -18,7 +18,7 @@ src/
                     HeroChair, StressOverlay, LabModel, textures.ts
     SideProfile.tsx 2D side diagram
   lib/
-    chair/          params, geometry, parts, consequences (Kangaroo)
+    chair/          params, geometry, parts, consequences, requirements, sitter fit (Kangaroo/shared)
                     japanese/ params, geometry, parts, consequences
                     stress, shop, joinery, stock  (shared engines, both typologies)
     lab.ts          Component Lab model + tests
@@ -43,6 +43,10 @@ params ──> geometry ──> 3D mesh (R3F)
 LabDesign ──> LabModel 3D  and  evaluateLab()  (same object → never disagree)
 ```
 Never compute a number in a component that the engine should own.
+
+The requirements engine is also pure: an intended-use profile plus current params produces measured results and pending physical-test requirements. Its built-in ranges are labelled as in-app guidance rather than standards certification.
+
+The sitter-fit engine is pure as well: chair params plus body dimensions produce foot-support, knee-clearance and hip-clearance results. `SitterOverlay` only animates and visualizes those computed results; it does not own fit rules.
 
 ## Two typologies
 `Typology = "kangaroo" | "japanese"`. Each has its own params/geometry/parts/consequences. Shared types (`AnyPartId`, `Observation`) live in `chair/parts.ts` and `chair/consequences.ts`. The store holds both param sets plus the active typology.

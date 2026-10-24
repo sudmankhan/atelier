@@ -1,7 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowUpRight, ChevronLeft, ChevronRight, Loader2, Send, Volume2, VolumeX } from "lucide-react";
+import {
+  ArrowUpRight,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Send,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { PARTS, PART_ORDER, type PartId } from "@/lib/chair/parts";
 import { J_PARTS, J_PART_ORDER, type JPartId } from "@/lib/chair/japanese/parts";
 import { computeGeometry, type ChairGeometry } from "@/lib/chair/geometry";
@@ -19,24 +27,42 @@ import { LumberStudio } from "./LumberStudio";
 import { JointInspector } from "./JointInspector";
 import { useWorkshop, type AnyPartId, type BenchTab } from "./store";
 import { cn } from "@/lib/utils";
+import { formatRequirementTarget } from "@/lib/chair/requirements";
+import { evaluateSitterFit } from "@/lib/chair/fit";
 
-const MEASURES: Record<string, { label: string; get: (p: ChairParams, g: ChairGeometry) => string }> = {
+const MEASURES: Record<
+  string,
+  { label: string; get: (p: ChairParams, g: ChairGeometry) => string }
+> = {
   seatHeight: { label: "Seat height (front)", get: (p) => `${p.seatHeight.toFixed(1)} cm` },
   seatWidth: { label: "Seat width", get: (p) => `${p.seatWidth.toFixed(1)} cm` },
   seatDepth: { label: "Seat depth", get: (p) => `${p.seatDepth.toFixed(1)} cm` },
   backAngle: { label: "Seat-to-back angle", get: (p) => `${p.backAngle.toFixed(1)}°` },
   frontLegLength: { label: "Front leg length", get: (_, g) => `${g.frontLegLength.toFixed(1)} cm` },
-  rearLegAngle: { label: "Rear support from vertical", get: (_, g) => `${g.rearLegAngle.toFixed(1)}°` },
+  rearLegAngle: {
+    label: "Rear support from vertical",
+    get: (_, g) => `${g.rearLegAngle.toFixed(1)}°`,
+  },
   backRecline: { label: "Back lean from vertical", get: (_, g) => `${g.backRecline.toFixed(1)}°` },
   overallHeight: { label: "Overall height", get: (_, g) => `${g.overallHeight.toFixed(1)} cm` },
   railLength: { label: "Rail length (shoulders)", get: (_, g) => `${g.railLength.toFixed(1)} cm` },
   footprintWidth: { label: "Footprint width", get: (_, g) => `${g.footprintWidth.toFixed(1)} cm` },
-  caneArea: { label: "Woven area (approx.)", get: (p, g) => `${(((p.seatWidth - 6) * (p.seatDepth - 8) + (p.seatWidth - 6) * (g.backrestLength - 5)) / 10000).toFixed(2)} m²` },
-  rearJointAngle: { label: "Back post ↔ rear support", get: (_, g) => `${g.rearJointAngle.toFixed(1)}°` },
+  caneArea: {
+    label: "Woven area (approx.)",
+    get: (p, g) =>
+      `${(((p.seatWidth - 6) * (p.seatDepth - 8) + (p.seatWidth - 6) * (g.backrestLength - 5)) / 10000).toFixed(2)} m²`,
+  },
+  rearJointAngle: {
+    label: "Back post ↔ rear support",
+    get: (_, g) => `${g.rearJointAngle.toFixed(1)}°`,
+  },
   frontJointAngle: { label: "Front leg ↔ seat", get: (_, g) => `${g.frontJointAngle.toFixed(1)}°` },
 };
 
-const J_MEASURES: Record<string, { label: string; get: (p: JapaneseParams, g: JGeometry) => string }> = {
+const J_MEASURES: Record<
+  string,
+  { label: string; get: (p: JapaneseParams, g: JGeometry) => string }
+> = {
   seatHeight: { label: "Seat height", get: (p) => `${p.seatHeight.toFixed(1)} cm` },
   seatWidth: { label: "Seat width", get: (p) => `${p.seatWidth.toFixed(1)} cm` },
   seatDepth: { label: "Seat depth", get: (p) => `${p.seatDepth.toFixed(1)} cm` },
@@ -46,10 +72,16 @@ const J_MEASURES: Record<string, { label: string; get: (p: JapaneseParams, g: JG
   footprintWidth: { label: "Footprint width", get: (_, g) => `${g.footprintWidth.toFixed(1)} cm` },
   footprintDepth: { label: "Footprint depth", get: (_, g) => `${g.footprintDepth.toFixed(1)} cm` },
   spindleSpacing: { label: "Spindle spacing", get: (_, g) => `${g.spindleSpacing.toFixed(1)} cm` },
-  spindleLength: { label: "Spindle length (approx.)", get: (_, g) => `${g.spindleLength.toFixed(1)} cm` },
+  spindleLength: {
+    label: "Spindle length (approx.)",
+    get: (_, g) => `${g.spindleLength.toFixed(1)} cm`,
+  },
   crestSpan: { label: "Crest span", get: (_, g) => `${g.crestSpan.toFixed(1)} cm` },
   overallHeight: { label: "Overall height", get: (_, g) => `${g.overallHeight.toFixed(1)} cm` },
-  armHeight: { label: "Arm height at post", get: (p) => `${(p.seatHeight + p.armHeight).toFixed(1)} cm` },
+  armHeight: {
+    label: "Arm height at post",
+    get: (p) => `${(p.seatHeight + p.armHeight).toFixed(1)} cm`,
+  },
   armSlope: { label: "Arm slope", get: (_, g) => `${g.armSlope.toFixed(1)}°` },
 };
 
@@ -76,18 +108,38 @@ const TABS: { id: BenchTab; label: string }[] = [
 
 export function Bench() {
   const w = useWorkshop();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (w.selected || w.pendingQuestion) setOpen(true);
+  }, [w.selected, w.pendingQuestion]);
   if (!open)
     return (
       <aside className="flex w-10 shrink-0 flex-col items-center border-l hairline bg-card pt-6">
-        <button onClick={() => setOpen(true)} aria-label="Open the Master's Bench" className="rounded-md p-1.5 hover:bg-secondary"><ChevronLeft className="h-4 w-4" /></button>
-        <span className="mt-4 text-[10px] uppercase tracking-widest text-muted-foreground [writing-mode:vertical-rl]">Master's Bench</span>
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Open the Master's Bench"
+          className="rounded-md p-1.5 hover:bg-secondary"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="mt-4 text-[10px] uppercase tracking-widest text-muted-foreground [writing-mode:vertical-rl]">
+          Master's Bench
+        </span>
       </aside>
     );
   return (
     <aside className="flex w-[380px] shrink-0 flex-col border-l hairline bg-card">
       <div className="px-5 pt-6">
-        <div className="flex items-center justify-between"><div className="eyebrow">The Master's Bench</div><button onClick={() => setOpen(false)} aria-label="Hide the Master's Bench" className="rounded-md p-1 hover:bg-secondary"><ChevronRight className="h-4 w-4" /></button></div>
+        <div className="flex items-center justify-between">
+          <div className="eyebrow">The Master's Bench</div>
+          <button
+            onClick={() => setOpen(false)}
+            aria-label="Hide the Master's Bench"
+            className="rounded-md p-1 hover:bg-secondary"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
         <div className="mt-3 flex gap-3 border-b hairline">
           {TABS.map((t) => (
             <button
@@ -95,7 +147,9 @@ export function Bench() {
               onClick={() => w.setBenchTab(t.id)}
               className={cn(
                 "-mb-px border-b-2 pb-2.5 text-xs transition-colors",
-                w.benchTab === t.id ? "border-teal text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+                w.benchTab === t.id
+                  ? "border-teal text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
               )}
             >
               {t.label}
@@ -133,7 +187,11 @@ function PartChips({ parts }: { parts: AnyPartId[] }) {
   return (
     <div className="mt-2 flex flex-wrap gap-1">
       {parts.map((p) => (
-        <button key={p} onClick={() => w.select(p)} className="rounded-full bg-teal-soft px-2 py-0.5 text-[10px] text-teal hover:underline">
+        <button
+          key={p}
+          onClick={() => w.select(p)}
+          className="rounded-full bg-teal-soft px-2 py-0.5 text-[10px] text-teal hover:underline"
+        >
           {(names as Record<string, { name: string }>)[p]?.name ?? p}
         </button>
       ))}
@@ -145,7 +203,9 @@ function Inspect() {
   const w = useWorkshop();
   const isK = w.typology === "kangaroo";
   const params = w.section === "design" ? w.params : isK ? BASELINE : J_BASELINE;
-  const g = isK ? computeGeometry(params as ChairParams) : computeJapanese(params as JapaneseParams);
+  const g = isK
+    ? computeGeometry(params as ChairParams)
+    : computeJapanese(params as JapaneseParams);
   const parts = isK ? PARTS : J_PARTS;
   const order: AnyPartId[] = isK ? PART_ORDER : J_PART_ORDER;
   const measures = isK ? MEASURES : J_MEASURES;
@@ -154,10 +214,17 @@ function Inspect() {
     return (
       <div className="p-5">
         <h3 className="text-2xl">Select a component</h3>
-        <p className="mt-2 text-sm text-muted-foreground">Click any part of the chair to study its purpose, material and construction — or choose one here.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Click any part of the chair to study its purpose, material and construction — or choose
+          one here.
+        </p>
         <div className="mt-5 divide-y hairline border-y hairline">
           {order.map((p) => (
-            <button key={p} onClick={() => w.select(p)} className="flex w-full items-center justify-between py-3 text-left text-sm hover:text-teal">
+            <button
+              key={p}
+              onClick={() => w.select(p)}
+              className="flex w-full items-center justify-between py-3 text-left text-sm hover:text-teal"
+            >
               {(parts as Record<string, { name: string }>)[p]!.name}
               <ArrowUpRight className="h-3.5 w-3.5 opacity-50" />
             </button>
@@ -165,7 +232,21 @@ function Inspect() {
         </div>
       </div>
     );
-  const part = (parts as Record<string, { id: string; name: string; purpose: string; material: string; relationships: string; observations: string[]; challenges: string[]; measures: string[] }>)[w.selected]!;
+  const part = (
+    parts as Record<
+      string,
+      {
+        id: string;
+        name: string;
+        purpose: string;
+        material: string;
+        relationships: string;
+        observations: string[];
+        challenges: string[];
+        measures: string[];
+      }
+    >
+  )[w.selected]!;
   const refs = retrieveSync(part.name, { partId: w.selected, typology: w.typology }, 2);
   const techs = techniquesFor(w.selected, w.typology).slice(0, 3);
   return (
@@ -189,26 +270,43 @@ function Inspect() {
           {part.measures.map((m) => (
             <div key={m} className="flex justify-between py-1.5 text-xs">
               <dt className="text-muted-foreground">{measures[m]?.label ?? m}</dt>
-              <dd className="font-mono text-measure">{measures[m] ? (measures[m].get as (p: never, g: never) => string)(params as never, g as never) : "—"}</dd>
+              <dd className="font-mono text-measure">
+                {measures[m]
+                  ? (measures[m].get as (p: never, g: never) => string)(params as never, g as never)
+                  : "—"}
+              </dd>
             </div>
           ))}
         </dl>
       </div>
       <Field label="Design observations">
-        <ul className="list-disc space-y-1 pl-4">{part.observations.map((o) => <li key={o}>{o}</li>)}</ul>
+        <ul className="list-disc space-y-1 pl-4">
+          {part.observations.map((o) => (
+            <li key={o}>{o}</li>
+          ))}
+        </ul>
       </Field>
       <Field label="Construction challenges">
-        <ul className="list-disc space-y-1 pl-4">{part.challenges.map((o) => <li key={o}>{o}</li>)}</ul>
+        <ul className="list-disc space-y-1 pl-4">
+          {part.challenges.map((o) => (
+            <li key={o}>{o}</li>
+          ))}
+        </ul>
       </Field>
       <div>
         <div className="eyebrow">Learn the craft</div>
         <ul className="mt-2 space-y-1.5">
           {techs.map((t) => (
             <li key={t.id}>
-              <button onClick={() => w.setSection("library")} className="group flex w-full items-start justify-between gap-2 text-left text-xs hover:text-teal">
+              <button
+                onClick={() => w.setSection("library")}
+                className="group flex w-full items-start justify-between gap-2 text-left text-xs hover:text-teal"
+              >
                 <span>
                   {t.title}
-                  <span className="ml-1.5 text-[10px] text-muted-foreground">Step-by-step guide · Library</span>
+                  <span className="ml-1.5 text-[10px] text-muted-foreground">
+                    Step-by-step guide · Library
+                  </span>
                 </span>
                 <ArrowUpRight className="mt-0.5 h-3 w-3 shrink-0 opacity-50" />
               </button>
@@ -216,10 +314,15 @@ function Inspect() {
           ))}
           {refs.map((r) => (
             <li key={r.id}>
-              <button onClick={() => w.setSection("library")} className="group flex w-full items-start justify-between gap-2 text-left text-xs hover:text-teal">
+              <button
+                onClick={() => w.setSection("library")}
+                className="group flex w-full items-start justify-between gap-2 text-left text-xs hover:text-teal"
+              >
                 <span>
                   {r.topic}
-                  <span className="ml-1.5 text-[10px] text-muted-foreground">Principle · Library</span>
+                  <span className="ml-1.5 text-[10px] text-muted-foreground">
+                    Principle · Library
+                  </span>
                 </span>
                 <ArrowUpRight className="mt-0.5 h-3 w-3 shrink-0 opacity-50" />
               </button>
@@ -284,7 +387,10 @@ function Geometry() {
   return (
     <div className="p-5">
       <h3 className="text-2xl">Side elevation</h3>
-      <p className="mt-1 text-xs text-muted-foreground">Solid: current design. Dashed blue: original. Computed from the same geometry as the 3D model.</p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Solid: current design. Dashed blue: original. Computed from the same geometry as the 3D
+        model.
+      </p>
       <div className="mt-3 rounded-lg border hairline bg-background grid-paper">
         <SideProfile params={w.params} typology={w.typology} className="w-full" />
       </div>
@@ -304,8 +410,16 @@ function Geometry() {
               <tr key={l}>
                 <td className="py-1.5 font-sans">{l}</td>
                 <td className="py-1.5 text-right text-muted-foreground">{o.toFixed(1)}</td>
-                <td className="py-1.5 text-right">{c.toFixed(1)}{u}</td>
-                <td className={cn("py-1.5 text-right", Math.abs(d) > 0.05 ? "text-teal" : "text-muted-foreground")}>
+                <td className="py-1.5 text-right">
+                  {c.toFixed(1)}
+                  {u}
+                </td>
+                <td
+                  className={cn(
+                    "py-1.5 text-right",
+                    Math.abs(d) > 0.05 ? "text-teal" : "text-muted-foreground",
+                  )}
+                >
                   {Math.abs(d) > 0.05 ? `${d > 0 ? "+" : "−"}${Math.abs(d).toFixed(1)}` : "—"}
                 </td>
               </tr>
@@ -324,7 +438,9 @@ function ObsGroup({ title, tag, items }: { title: string; tag: string; items: Ob
         <h4 className="font-serif text-lg">{title}</h4>
         <span className="eyebrow">{tag}</span>
       </div>
-      {items.length === 0 && <p className="mt-1 text-xs text-muted-foreground">No changes in this category yet.</p>}
+      {items.length === 0 && (
+        <p className="mt-1 text-xs text-muted-foreground">No changes in this category yet.</p>
+      )}
       <AnimatePresence initial={false}>
         {items.map((o) => (
           <motion.div
@@ -333,7 +449,10 @@ function ObsGroup({ title, tag, items }: { title: string; tag: string; items: Ob
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className={cn("mt-2 overflow-hidden rounded-lg border-l-2 bg-background px-3 py-2.5", o.attention ? "border-alert" : "border-teal")}
+            className={cn(
+              "mt-2 overflow-hidden rounded-lg border-l-2 bg-background px-3 py-2.5",
+              o.attention ? "border-alert" : "border-teal",
+            )}
           >
             <div className="text-sm">{o.title}</div>
             <div className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{o.detail}</div>
@@ -354,10 +473,14 @@ function Feedback() {
       <div>
         <h3 className="text-2xl">Design Consequences</h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          Geometry is calculated exactly. Human-factors and craft notes are reviewed guidance — not safety ratings or comfort guarantees.
+          Geometry is calculated exactly. Human-factors and craft notes are reviewed guidance — not
+          safety ratings or comfort guarantees.
         </p>
         {w.section !== "design" && (
-          <button onClick={() => w.setSection("design")} className="mt-3 text-xs text-teal hover:underline">
+          <button
+            onClick={() => w.setSection("design")}
+            className="mt-3 text-xs text-teal hover:underline"
+          >
             Open the Design Studio to change the chair →
           </button>
         )}
@@ -365,8 +488,8 @@ function Feedback() {
       {c.misaligned.length > 0 && (
         <div className="rounded-lg bg-alert/10 px-3 py-2.5 text-xs text-foreground">
           <span className="font-semibold text-alert">Connections out of alignment: </span>
-          {c.misaligned.map((m) => labels[m] ?? m).join(", ")}
-          . Their angles differ from the original beyond tolerance, so joints laid out for the original would not seat.
+          {c.misaligned.map((m) => labels[m] ?? m).join(", ")}. Their angles differ from the
+          original beyond tolerance, so joints laid out for the original would not seat.
         </div>
       )}
       <ObsGroup title="Geometry" tag="Measured" items={c.geometry} />
@@ -381,16 +504,24 @@ function Feedback() {
               min={30}
               max={60}
               value={w.user.poplitealHeight ?? ""}
-              onChange={(e) => w.setUser({ poplitealHeight: e.target.value ? Number(e.target.value) : undefined })}
+              onChange={(e) =>
+                w.setUser({ poplitealHeight: e.target.value ? Number(e.target.value) : undefined })
+              }
               className="w-20 rounded-md border hairline bg-card px-2 py-1 font-mono text-xs outline-none focus:border-teal"
             />
-            <span className="text-muted-foreground">cm — floor to the back of the knee, seated</span>
+            <span className="text-muted-foreground">
+              cm — floor to the back of the knee, seated
+            </span>
           </div>
         </label>
       </div>
       <button
         disabled={c.changed.length === 0}
-        onClick={() => w.askMasterAbout("Explain the consequences of my design changes, and what I should consider as a maker.")}
+        onClick={() =>
+          w.askMasterAbout(
+            "Explain the consequences of my design changes, and what I should consider as a maker.",
+          )
+        }
         className="w-full rounded-md bg-primary px-4 py-2.5 text-sm text-primary-foreground disabled:opacity-40"
       >
         Have the Master explain these changes
@@ -413,7 +544,9 @@ function Ask() {
   const handled = useRef<string | null>(null);
 
   useEffect(() => {
-    status().then((s) => setVoice(s.configured)).catch(() => setVoice(false));
+    status()
+      .then((s) => setVoice(s.configured))
+      .catch(() => setVoice(false));
   }, [status]);
   useEffect(() => {
     end.current?.scrollIntoView({ behavior: "smooth" });
@@ -426,8 +559,13 @@ function Ask() {
     setInput("");
     setBusy(true);
     const c = w.consequences;
+    const fit = evaluateSitterFit(w.typology, w.params, w.user);
     const lesson =
-      w.section === "study" ? WALKTHROUGH[w.progress.walkStep]?.title : w.section === "build" ? BUILD_STEPS[w.progress.buildStep]?.title : null;
+      w.section === "study"
+        ? WALKTHROUGH[w.progress.walkStep]?.title
+        : w.section === "build"
+          ? BUILD_STEPS[w.progress.buildStep]?.title
+          : null;
     try {
       const r = await ask({
         data: {
@@ -440,13 +578,27 @@ function Ask() {
             lesson: lesson ?? null,
             params: w.params as unknown as Record<string, number | string>,
             changed: c.changed,
-            observations: [...c.geometry, ...c.craft].map((o) => `${o.title}: ${o.detail}`),
+            observations: [
+              ...w.requirements.map(
+                (result) =>
+                  `Requirement ${result.spec.title} (${w.requirementProfile}): ${result.status}; ${result.evidence} Target ${formatRequirementTarget(result.spec)}.`,
+              ),
+              ...fit.map(
+                (result) =>
+                  `Sitter fit ${result.title}: ${result.level}; ${result.detail} Target: ${result.target}.`,
+              ),
+              ...c.geometry.map((o) => `${o.title}: ${o.detail}`),
+              ...c.craft.map((o) => `${o.title}: ${o.detail}`),
+            ],
           },
         },
       });
       w.setChat((m) => [...m, { role: "assistant", content: r.answer, sources: r.sources }]);
     } catch {
-      w.setChat((m) => [...m, { role: "assistant", content: "The Master couldn't answer just now. Please try again." }]);
+      w.setChat((m) => [
+        ...m,
+        { role: "assistant", content: "The Master couldn't answer just now. Please try again." },
+      ]);
     } finally {
       setBusy(false);
     }
@@ -481,7 +633,9 @@ function Ask() {
   };
 
   const partName = w.selected
-    ? ((w.typology === "kangaroo" ? PARTS[w.selected as PartId]?.name : J_PARTS[w.selected as JPartId]?.name) ?? null)
+    ? ((w.typology === "kangaroo"
+        ? PARTS[w.selected as PartId]?.name
+        : J_PARTS[w.selected as JPartId]?.name) ?? null)
     : null;
 
   const suggestions =
@@ -501,16 +655,24 @@ function Ask() {
     <div className="flex h-full flex-col">
       <div className="flex-1 space-y-4 overflow-y-auto p-5">
         <div className="text-xs text-muted-foreground">
-          Context: <span className="text-foreground">{partName ?? "whole chair"}</span> · {w.typology} · {w.section}
-          {w.consequences.changed.length > 0 && ` · ${w.consequences.changed.length} parameter(s) changed`}
+          Context: <span className="text-foreground">{partName ?? "whole chair"}</span> ·{" "}
+          {w.typology} · {w.section}
+          {w.consequences.changed.length > 0 &&
+            ` · ${w.consequences.changed.length} parameter(s) changed`}
         </div>
         {w.chat.length === 0 && (
           <div>
             <h3 className="text-2xl">Ask the Master</h3>
-            <p className="mt-2 text-sm text-muted-foreground">A patient craft instructor who knows what you're looking at and what you've changed.</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              A patient craft instructor who knows what you're looking at and what you've changed.
+            </p>
             <div className="mt-4 space-y-1.5">
               {suggestions.map((s) => (
-                <button key={s} onClick={() => send(s)} className="block w-full rounded-md border hairline px-3 py-2 text-left text-xs hover:border-teal">
+                <button
+                  key={s}
+                  onClick={() => send(s)}
+                  className="block w-full rounded-md border hairline px-3 py-2 text-left text-xs hover:border-teal"
+                >
                   {s}
                 </button>
               ))}
@@ -519,7 +681,9 @@ function Ask() {
         )}
         {w.chat.map((m, i) =>
           m.role === "user" ? (
-            <div key={i} className="ml-8 rounded-lg bg-secondary px-3 py-2 text-sm">{m.content}</div>
+            <div key={i} className="ml-8 rounded-lg bg-secondary px-3 py-2 text-sm">
+              {m.content}
+            </div>
           ) : (
             <div key={i} className="text-sm leading-relaxed">
               <div className="eyebrow mb-1">The Master</div>
@@ -528,18 +692,33 @@ function Ask() {
                 <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
                   {m.sources.map((s) =>
                     s.url ? (
-                      <a key={s.url} href={s.url} target="_blank" rel="noreferrer" className="text-[11px] text-teal hover:underline">
+                      <a
+                        key={s.url}
+                        href={s.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] text-teal hover:underline"
+                      >
                         {s.title} ↗
                       </a>
                     ) : (
-                      <span key={s.title} className="text-[11px] text-muted-foreground">{s.title}</span>
+                      <span key={s.title} className="text-[11px] text-muted-foreground">
+                        {s.title}
+                      </span>
                     ),
                   )}
                 </div>
               )}
               {voice && (
-                <button onClick={() => listen(i, m.content)} className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground">
-                  {playing === i ? <VolumeX className="h-3 w-3" /> : <Volume2 className="h-3 w-3" />}
+                <button
+                  onClick={() => listen(i, m.content)}
+                  className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                >
+                  {playing === i ? (
+                    <VolumeX className="h-3 w-3" />
+                  ) : (
+                    <Volume2 className="h-3 w-3" />
+                  )}
                   {playing === i ? "Stop" : "Listen to the Master"}
                 </button>
               )}
@@ -566,11 +745,19 @@ function Ask() {
           placeholder="Ask about form, joinery, materials…"
           className="min-w-0 flex-1 rounded-md border hairline bg-background px-3 py-2 text-sm outline-none focus:border-teal"
         />
-        <button disabled={busy || !input.trim()} aria-label="Send" className="rounded-md bg-primary px-3 text-primary-foreground disabled:opacity-40">
+        <button
+          disabled={busy || !input.trim()}
+          aria-label="Send"
+          className="rounded-md bg-primary px-3 text-primary-foreground disabled:opacity-40"
+        >
           <Send className="h-4 w-4" />
         </button>
       </form>
-      {!voice && <div className="px-4 pb-2 text-[10px] text-muted-foreground">Silent text mode — voice narration isn't configured.</div>}
+      {!voice && (
+        <div className="px-4 pb-2 text-[10px] text-muted-foreground">
+          Silent text mode — voice narration isn't configured.
+        </div>
+      )}
     </div>
   );
 }

@@ -16,8 +16,8 @@
 
 ## 2. Workshop shell
 - **Sidebar** (`Sidebar.tsx`): left menu of sections, renamed labels (Anatomy, Parametric Studio, Assembly order, Component Lab, Projects, Library, Progress).
-- **Stage** (`Stage.tsx`): the 3D canvas area. Toolbar (right side) with typology switch (Kangaroo / Japanese), camera presets (three/front/side/back/top), Explode, **Grain & stress** toggle, **Focus** mode (hides every panel → pure 3D). Floating panels can be minimized.
-- **Master's Bench** (`Bench.tsx`): collapsible right panel with tabs: Mentor chat, Shop, Joints, Lumber (and part info). Collapsing it gives the model full width.
+- **Stage** (`Stage.tsx`): the 3D canvas area. A single reserved header contains compact chair and camera selectors plus icon tools for reset, explode, dimensions, **Grain & stress**, compare and **Focus**. The header sits outside the WebGL viewport and never covers the model. Focus removes the header and panels, leaving only a small exit control.
+- **Master's Bench** (`Bench.tsx`): collapsed by default; opens when requested, when a part is selected, or when the mentor is invoked. Tabs contain Mentor chat, Shop, Joints, Lumber and part information.
 - State lives in `store.tsx` (React context; see ARCHITECTURE).
 
 ## 3. Discover
@@ -29,11 +29,12 @@ Showcase of both chairs with story, key measurements and an entry into study/des
 - Limit: walkthrough content exists for Kangaroo only; Japanese shows a switch prompt.
 
 ## 5. Parametric Studio (design)
-- `DesignControls.tsx` sliders.
+- `DesignControls.tsx` uses one dock with Shape and Requirements modes. The dock reserves canvas space instead of covering the chair; the full cut list remains in the Shop tab.
   - Kangaroo (`ChairParams`): seatHeight, seatWidth, seatDepth, backAngle, supportSpacing, backCurve, wood (teak/walnut/oak). Baseline 36/54/56/112°/22/0.35/teak.
   - Japanese (`JapaneseParams`): seat dims, back height, leg splay, spindle count, arm height, finish (black urushi lacquer / keyaki / walnut).
 - 3D model regenerates from pure geometry; `SideProfile.tsx` draws the 2D side diagram from the same geometry.
 - Consequence observations (deterministic) listed and fed to the mentor.
+- Requirements design brief: switch between Low lounge and Dining profiles to evaluate live dimensions against transparent, sourced in-app ranges. Physical stability and load checks remain explicitly pending until tested on a representative build.
 - Save design → Projects (compare snapshots).
 
 ## 6. Grain & stress overlay (`StressOverlay.tsx`, `src/lib/chair/stress.ts`)
@@ -42,6 +43,13 @@ Showcase of both chairs with story, key measurements and an entry into study/des
 - Short-grain flag when a curved part's runout exceeds the 1:12 rule (≈4.8°).
 - Japanese seat: seasonal movement ≈1 mm per 10 cm of width; warns never to glue across grain.
 - Hidden while exploded.
+
+## 6a. Sit & fit animation (`SitterOverlay.tsx`, `src/lib/chair/fit.ts`)
+- A schematic, dimension-driven sitter moves from standing to seated and settles against the back.
+- Sitter controls cover seated knee height, buttock-to-knee length, hip breadth, torso height and body mass.
+- Blue guides show body dimensions. Amber/red contact markers identify foot-support, knee-clearance and hip-clearance conflicts on the chair.
+- After the sitter settles, an illustrative load path appears and the existing joint-stress pins pulse into view. This remains a teaching visualization, not FEA or a physical product test.
+- Sitter controls are a third mode in the single Parametric Studio dock, so the animation adds no permanent popup.
 
 ## 7. Shop tab (`ShopSheet.tsx`, `src/lib/chair/shop.ts`)
 - Cut list: part, qty, finished size, rough size (+2.5 cm length, +0.6 width/thickness, +3 cm per tenon end), total board feet.
@@ -59,7 +67,7 @@ Showcase of both chairs with story, key measurements and an entry into study/des
 - Start: blank pine stool with screws (`BLANK`).
 - Choose base (four / splayed / sled / zframe), back (none / slats / spindles / panel), joint (M&T / dowel / wedged / screw), wood (oak/ash/walnut/pine); sliders for seat height/depth/width, back angle, back height, leg thickness, splay; stretchers toggle.
 - Live 3D generated from the same `LabDesign` being tested; **X-ray joints** shows joint markers.
-- **Test this chair** → score /100 and results (stability, joints/racking, parts, comfort, wood movement, craft mismatches). Failing stability tilts the 3D chair backward.
+- **Test this chair** → score /100 and inline results in the existing Lab panel (stability, joints/racking, parts, comfort, wood movement, craft mismatches). No second popup covers the model. Failing stability tilts the 3D chair backward.
 - Parts panel collapsible, results card min/max.
 
 ## 11. Lumber Studio (`LumberStudio.tsx`, `src/lib/chair/stock.ts`, `src/lib/lumber.functions.ts`)

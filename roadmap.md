@@ -12,7 +12,8 @@
 - [x] Remove build quiz; sections renamed Anatomy / Parametric Studio / Assembly order
 - [x] Component Lab builds a live 3D chair with x-ray joints and tipping
 - [x] Collapsible Master's Bench, minimizable panels, Focus mode
-- [ ] Hackathon angles: sit-and-stress test animation, shop export (PDF/STL), grain photo inspector, pitch flow
+- [ ] Hackathon angles: shop export (PDF/STL), grain photo inspector, pitch flow
 
 - [x] Lumber Studio: board → part matcher with layout + 3D highlight, AI photo grain inspection
-- [ ] Sit & Stress animation, Shop Pack export, Judge tour
+- [x] Sit & Stress animation with dimensioned sitter and fit conflicts
+- [ ] Shop Pack export, Judge tour
