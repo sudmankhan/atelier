@@ -1,0 +1,160 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* FORM & GRAIN design system — warm atelier palette, oklch. */
+
+@theme inline {
+  --font-serif: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-walnut: var(--walnut);
+  --color-teal: var(--teal);
+  --color-teal-soft: var(--teal-soft);
+  --color-measure: var(--measure);
+  --color-cream: var(--cream);
+  --color-alert: var(--alert);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.5rem;
+  --background: oklch(0.968 0.008 85); /* #F7F4EE */
+  --foreground: oklch(0.27 0.02 50); /* #30251F espresso */
+  --card: oklch(0.985 0.005 85); /* #FCFAF6 cream */
+  --card-foreground: oklch(0.27 0.02 50);
+  --popover: oklch(0.985 0.005 85);
+  --popover-foreground: oklch(0.27 0.02 50);
+  --primary: oklch(0.27 0.02 50);
+  --primary-foreground: oklch(0.985 0.005 85);
+  --secondary: oklch(0.909 0.02 80); /* #E9E1D4 beige */
+  --secondary-foreground: oklch(0.27 0.02 50);
+  --muted: oklch(0.935 0.014 82);
+  --muted-foreground: oklch(0.48 0.025 55);
+  --accent: oklch(0.55 0.05 175); /* #547D75 teal */
+  --accent-foreground: oklch(0.985 0.005 85);
+  --destructive: oklch(0.58 0.11 40);
+  --destructive-foreground: oklch(0.985 0.005 85);
+  --border: oklch(0.87 0.02 75);
+  --input: oklch(0.87 0.02 75);
+  --ring: oklch(0.55 0.05 175);
+  --walnut: oklch(0.48 0.06 55); /* #76543D */
+  --teal: oklch(0.55 0.05 175);
+  --teal-soft: oklch(0.92 0.025 175);
+  --measure: oklch(0.59 0.045 235); /* #66859A */
+  --cream: oklch(0.985 0.005 85);
+  --alert: oklch(0.6 0.1 40);
+  --sidebar: oklch(0.95 0.012 82);
+  --sidebar-foreground: oklch(0.27 0.02 50);
+  --sidebar-primary: oklch(0.27 0.02 50);
+  --sidebar-primary-foreground: oklch(0.985 0.005 85);
+  --sidebar-accent: oklch(0.909 0.02 80);
+  --sidebar-accent-foreground: oklch(0.27 0.02 50);
+  --sidebar-border: oklch(0.87 0.02 75);
+  --sidebar-ring: oklch(0.55 0.05 175);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-serif);
+    font-weight: 400;
+    letter-spacing: -0.015em;
+  }
+}
+
+@utility eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+
+@utility hairline {
+  border-color: color-mix(in oklab, var(--color-foreground) 12%, transparent);
+}
+
+@utility dim-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--color-measure);
+  background: color-mix(in oklab, var(--color-cream) 88%, transparent);
+  border: 1px solid color-mix(in oklab, var(--color-measure) 35%, transparent);
+  padding: 1px 6px;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+@utility paper {
+  background-image:
+    radial-gradient(circle at 20% 10%, color-mix(in oklab, var(--color-cream) 70%, transparent), transparent 55%),
+    radial-gradient(circle at 80% 90%, color-mix(in oklab, var(--color-secondary) 60%, transparent), transparent 60%);
+}
+
+@utility grid-paper {
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--color-measure) 9%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklab, var(--color-measure) 9%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@utility animate-rise {
+  animation: rise 0.9s cubic-bezier(0.2, 0.7, 0.1, 1) both;
+}
