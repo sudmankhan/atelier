@@ -26,24 +26,27 @@ export const inspectLumber = createServerFn({ method: "POST" })
     return { ...i, parts: (i.parts ?? []).slice(0, 20).map((p) => String(p).slice(0, 60)) };
   })
   .handler(async ({ data }) => {
-    const { generateChatCompletion, GatewayError } = await import("@lovable.dev/ai-gateway");
+    const { generateGeminiContent, geminiErrorKind } = await import("@/lib/gemini.server");
     const ctx = `Chair: ${data.typology === "japanese" ? "Japanese-inspired spindle-back" : "Kangaroo-inspired lounge chair"}. Board (rough): ${data.board.l} × ${data.board.w} × ${data.board.t} cm. PARTS: ${data.parts.join(", ")}.`;
     try {
-      const res = await generateChatCompletion({
-        model: "google/gemini-3.8-flash",
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "user", content: [{ type: "text", text: ctx }, { type: "image_url", image_url: { url: data.image } }] },
+      const match = /^data:(image\/(?:jpeg|png|webp));base64,(.+)$/.exec(data.image);
+      if (!match) throw new Error("Invalid image data URL");
+      const text = await generateGeminiContent({
+        system: SYSTEM,
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: ctx }, { inlineData: { mimeType: match[1], data: match[2] } }],
+          },
         ],
-      } as Parameters<typeof generateChatCompletion>[0]);
-      const raw = res.choices?.[0]?.message?.content;
-      const text = typeof raw === "string" ? raw : "";
+        mode: "vision",
+      });
       const report = parseLumberReport(text, data.parts);
       return { ok: true as const, report, error: null };
     } catch (e) {
       console.error("inspectLumber failed", e);
-      const code = e instanceof GatewayError ? e.code : "unknown";
-      const error = code === "payment_required" ? "AI credits are exhausted for this workspace." : code === "rate_limited" ? "Too many requests — wait a moment and try again." : "Couldn't read that photo. Try a clearer, well-lit shot of the board face.";
+      const kind = geminiErrorKind(e);
+      const error = kind === "not_configured" ? "Lumber inspection is not configured. Add GEMINI_API_KEY to the server environment." : kind === "rate_limited" ? "Too many requests — wait a moment and try again." : kind === "timeout" ? "The photo inspection took too long. Please try again with a smaller image." : "Couldn't read that photo. Try a clearer, well-lit shot of the board face.";
       return { ok: false as const, report: null, error };
     }
   });

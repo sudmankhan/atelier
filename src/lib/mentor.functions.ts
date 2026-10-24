@@ -48,7 +48,7 @@ export const askMaster = createServerFn({ method: "POST" })
     const resolution = resolveParams(data.question, ctx.typology);
     // Ambiguous parameter: ask instead of guessing (no model call).
     if (resolution.kind === "ambiguous") return { ok: true as const, answer: clarifyReply(resolution), sources: [] as MentorSource[] };
-    const { generateChatCompletion, GatewayError } = await import("@lovable.dev/ai-gateway");
+    const { generateGeminiContent, geminiErrorKind } = await import("@/lib/gemini.server");
     const hits = retrieveSync(data.question, { partId: null, changedParams: ctx.changed, typology: ctx.typology }, 4);
     const refs = hits.map((h, i) => `[${i + 1}] ${h.sourceTitle}\nTopic: ${h.topic}\n${h.principle} ${h.explanation}`).join("\n\n");
     const paramText = Object.entries(ctx.params)
@@ -74,17 +74,17 @@ export const askMaster = createServerFn({ method: "POST" })
     ].join("\n");
 
     try {
-      const res = await generateChatCompletion({
-        model: "google/gemini-3.8-flash",
-        messages: [
-          { role: "system", content: SYSTEM },
-          { role: "system", content: `CONTEXT\n${ctxText}\n\nREFERENCE EXCERPTS\n${refs || "(none matched)"}` },
-          ...data.history.map((m) => ({ role: m.role, content: m.content })),
-          { role: "user", content: data.question },
+      const content = await generateGeminiContent({
+        system: `${SYSTEM}\n\nCONTEXT\n${ctxText}\n\nREFERENCE EXCERPTS\n${refs || "(none matched)"}`,
+        contents: [
+          ...data.history.map((message) => ({
+            role: message.role === "assistant" ? ("model" as const) : ("user" as const),
+            parts: [{ text: message.content }],
+          })),
+          { role: "user", parts: [{ text: data.question }] },
         ],
       });
-      const content = res.choices?.[0]?.message?.content;
-      let answer = (typeof content === "string" ? content : "").replace(/\*\*?/g, "");
+      let answer = content.replace(/\*\*?/g, "");
       if (answer) {
         const chk = checkAnswer(answer, ctxText);
         if (chk.overclaim || chk.inventedNumbers.length) answer += `\n\n${LIMITATION_NOTE}`;
@@ -96,12 +96,14 @@ export const askMaster = createServerFn({ method: "POST" })
       };
     } catch (e) {
       console.error("askMaster failed", e);
-      const code = e instanceof GatewayError ? e.code : "unknown";
+      const kind = geminiErrorKind(e);
       const msg =
-        code === "payment_required"
-          ? "The Master is unavailable — AI credits are exhausted for this workspace."
-          : code === "rate_limited"
+        kind === "not_configured"
+          ? "The Master is unavailable — GEMINI_API_KEY is not configured on the server."
+          : kind === "rate_limited"
             ? "The Master is busy. Please wait a moment and ask again."
+            : kind === "timeout"
+              ? "The Master took too long to answer. Please try again."
             : "The Master couldn't answer just now. Please try again.";
       return { ok: false as const, answer: msg, sources: [] as MentorSource[] };
     }
