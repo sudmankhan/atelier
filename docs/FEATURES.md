@@ -38,9 +38,9 @@ Showcase of both chairs with story, key measurements and an entry into study/des
 
 ## 6. Grain & stress overlay (`StressOverlay.tsx`, `src/lib/chair/stress.ts`)
 - Arrows show grain direction per part.
-- Dots on joints: green (≤10% over original), amber (10–30%), red (>30%), labelled e.g. "32 N·m · +18%".
+- Dots on joints, labelled "σ MPa · % of ref": bending stress on the tenon (or back-post) section from free-body joint moments under the assumed loads, divided by a USDA-derived reference stress. Green < 50%, amber ≤ 100%, red > 100%. The panel shows M, section, σ and the reference for each pin, plus the stand-in wood note for the Japanese chair.
 - Short-grain flag when a curved part's runout exceeds the 1:12 rule (≈4.8°).
-- Japanese seat: seasonal movement ≈1 mm per 10 cm of width; warns never to glue across grain.
+- Japanese seat: seasonal movement = width × C_T × 4 %MC (Wood Handbook Table 13–5 / Eq. 13–2); warns never to glue across grain.
 - Hidden while exploded.
 
 ## 7. Shop tab (`ShopSheet.tsx`, `src/lib/chair/shop.ts`)
@@ -49,7 +49,8 @@ Showcase of both chairs with story, key measurements and an entry into study/des
 
 ## 8. Joints tab (`JointInspector.tsx`, `src/lib/chair/joinery.ts`)
 - Pick a joint per typology; drag tenon thickness/length; cross-section + side drawing update.
-- Four checks (good/warn/bad + advice): tenon ≈⅓ member (round tenons ½–⅔), mortise walls ≥0.6 cm, tenon long enough but not breaking through, enough long-grain glue area.
+- Live σ = M/S for the tenon size you dial in (same calculation as the stress pins).
+- Four shop-rule checks (good/warn/bad + advice): tenon ≈⅓ member (round tenons ½–⅔), mortise walls ≥0.6 cm, tenon long enough but not breaking through, enough long-grain glue area.
 
 ## 9. Assembly order (build) (`AssemblyPractice.tsx`, `src/lib/assembly.ts`)
 - 10 shop operations per chair, shuffled. User reorders and presses **Check my order**.
@@ -59,17 +60,18 @@ Showcase of both chairs with story, key measurements and an entry into study/des
 - Start: blank pine stool with screws (`BLANK`).
 - Choose base (four / splayed / sled / zframe), back (none / slats / spindles / panel), joint (M&T / dowel / wedged / screw), wood (oak/ash/walnut/pine); sliders for seat height/depth/width, back angle, back height, leg thickness, splay; stretchers toggle.
 - Live 3D generated from the same `LabDesign` being tested; **X-ray joints** shows joint markers.
-- **Test this chair** → score /100 and results (stability, joints/racking, parts, comfort, wood movement, craft mismatches). Failing stability tilts the 3D chair backward.
+- **Test this chair** → good / to watch / problem counts and results, each with a provenance badge: stability (tipping threshold with the chair's own weight), joints (portal-method racking stress vs USDA reference; screws marked not calculated), parts, comfort (personal check if you enter knee height), wood movement (mm for a solid panel), craft mismatches. A chair that tips under a gentle lean tilts backward in 3D.
+- Side view draws the combined centre of mass and the rear-foot pivot.
 - Parts panel collapsible, results card min/max.
 
 ## 11. Lumber Studio (`LumberStudio.tsx`, `src/lib/chair/allocate.ts` — shared multi-board layout, see ENGINEERING_RULES, `src/lib/chair/stock.ts`, `src/lib/lumber.functions.ts`)
 - Enter a board L × W × T (cm) and optional grain slope, or choose a sample (straight walnut, 1:7 runout oak, knotty pine), or upload a photo.
 - Deterministic matcher: for every cut-list part, how many fit (kerf 0.3 cm, section can rotate, resaw counted), waste %, cut layout diagram, verdict good/warn/bad. Load-bearing parts on grain steeper than 1:12 → bad.
 - Matching parts are highlighted on the 3D chair.
-- Photo → Gemini Vision report (species, cut, grain slope, defects, best/avoid parts, advice, confidence). Vision slope feeds the matcher.
+- Photo → Gemini Vision report (species, cut, grain look straight / moderate / steep, defects, best/avoid parts, advice, confidence). Descriptive only, badged "AI estimate"; it does not feed a number into the matcher.
 
 ## 12. Mentor ("The Master")
-- Chat in the Bench. Sends question + live context (typology, section, selected part, lesson, params, changed params, computed observations) to `askMaster`.
+- Chat in the Bench. Sends question + live context (typology, section, selected part, lesson, params, changed params, geometry observations, and `[CALCULATED]` joint stress / tipping / movement lines with their `[ASSUMPTION]` loads from `chair/calculated.ts`) to `askMaster`.
 - Answers prescriptively (what the change does, good/bad, what to change next, one question back). Sources are shown as Library titles only (no external links).
 - Optional voice (ElevenLabs) — silent unless the secret exists.
 
@@ -79,4 +81,7 @@ Showcase of both chairs with story, key measurements and an entry into study/des
 - Progress: walkthrough/build progress from the repository.
 
 ## Static tipping check
-Bench "Tipping" tab (Kangaroo + Japanese) and a Component Lab panel: editable W, F, h and combined CoM; diagram with moment bars and worked formulas. Lab racking/tipping results are worded as rule-of-thumb estimates.
+Bench "Tipping" tab (Kangaroo + Japanese) and a Component Lab panel: editable sitter weight, F, h and sitter CoM; the chair's own weight (parts × USDA density) is added automatically and the sitter shifts back with recline. Diagram with moment bars and worked formulas.
+
+## How it works (`HowItWorks.tsx`, `src/lib/explainers.ts`)
+Sidebar page explaining every feature in plain language: a woodworking primer, then per feature what it shows, the physics, each number with why it's there and its source, how it helps, and its limits. Every provenance badge (Calculated / Calculated from assumption / Rule of thumb / AI estimate) on a panel links to its section. Long-form version: `docs/PRODUCT_GUIDE.md`.

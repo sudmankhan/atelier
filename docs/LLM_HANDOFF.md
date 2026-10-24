@@ -27,10 +27,10 @@ AI features need a Lovable AI Gateway key (`LOVABLE_API_KEY`) — automatic on L
 - Cloud save: implement `StudioRepository` against a backend.
 
 ## Tests that exist
-`consequences.test.ts`, `japanese/consequences.test.ts`, `stress.test.ts`, `shop.test.ts`, `steps456.test.ts` (joinery, assembly, lab), `stock.test.ts`, `src/test/app-routing.test.tsx`.
+`consequences.test.ts`, `japanese/consequences.test.ts`, `stress.test.ts`, `shop.test.ts`, `steps456.test.ts` (joinery, assembly, lab), `stock.test.ts`, `woodProperties.test.ts`, `freeBody.test.ts` (hand-calculated moments), `chairMass.test.ts`, `calculated.test.ts`, `regressions.test.ts`, `src/lib/explainers.test.ts` (every badge topic has an explainer), `src/test/app-routing.test.tsx`.
 
 ## Known limits
-- No FEA; stress = relative moments vs original; wood idealized; lab statics are 2D approximations.
+- No FEA. Joint stress = free-body bending moment ÷ tenon section vs a USDA clear-wood reference stress, under assumed loads; bending only (no glue line, shear, splitting, fatigue). Screws not calculated. Keyaki uses a white-oak stand-in. Statics are 2D.
 - Lab 3D uses straight parts only (no carved seats, bent rails).
 - Anatomy walkthrough only for Kangaroo.
 - Keyword RAG, small corpus.
