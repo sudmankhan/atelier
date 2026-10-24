@@ -66,6 +66,22 @@ export function labRearPivotZ(d: LabDesign) {
   return d.base === "zframe" ? rz - 16 : d.base === "sled" ? rz - 6 : rz - sp;
 }
 
-/** Illustrative default CoM z: a fraction of the seat depth forward of the seat rear. */
-export const defaultComZ = (seatRearZ: number, seatFrontZ: number, frac = DEFAULT_COM_FRACTION) =>
-  seatRearZ + (seatFrontZ - seatRearZ) * frac;
+/** Head + arms + trunk as a fraction of body mass, and their centre as a fraction of hip → shoulder (Winter 2009, Table 4.1). */
+export const HAT_MASS_FRACTION = 0.678;
+export const HAT_COM_FRACTION = 0.626;
+/** Assumed hip-to-shoulder length of an adult sitter, cm. */
+export const HIP_TO_SHOULDER_CM = 50;
+
+/**
+ * Sitter's centre of mass z (cm, +z forward). Upright: a fraction of the seat depth forward of the seat rear
+ * (an assumption). Leaning on a back reclined `reclineDeg` from vertical swings the upper body back with it.
+ */
+export const defaultComZ = (seatRearZ: number, seatFrontZ: number, frac = DEFAULT_COM_FRACTION, reclineDeg = 0) =>
+  seatRearZ + (seatFrontZ - seatRearZ) * frac -
+  HAT_MASS_FRACTION * HAT_COM_FRACTION * HIP_TO_SHOULDER_CM * Math.sin((Math.max(0, reclineDeg) * Math.PI) / 180);
+
+/** Combine two weights (N) at two z positions (cm) into one total weight and centre. */
+export function combineWeights(a: { W: number; z: number }, b: { W: number; z: number }) {
+  const W = a.W + b.W;
+  return { W, z: W > 0 ? (a.W * a.z + b.W * b.z) / W : 0 };
+}

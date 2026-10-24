@@ -14,7 +14,10 @@ Read in this order:
 3. [AI_AND_APIS.md](./AI_AND_APIS.md) — how Gemini (Lovable AI Gateway), RAG, vision and ElevenLabs are used.
 4. [ENGINEERING_RULES.md](./ENGINEERING_RULES.md) — every formula, constant and threshold in the deterministic engine.
 5. [LLM_HANDOFF.md](./LLM_HANDOFF.md) — rules, invariants, how to run/test, known limits, open work.
+6. [PRODUCT_GUIDE.md](./PRODUCT_GUIDE.md) — plain-language guide: woodworking primer, every feature's physics, every constant and its source, known limits.
 
-Honesty statement (must be preserved in any future work): all numbers are
-rule-of-thumb teaching estimates. There is no FEA, no certified strength or safety
-result, and the 3D chairs are educational reconstructions, not exact reproductions.
+Honesty statement (must be preserved in any future work): every number carries a
+provenance badge — Calculated (geometry + USDA Wood Handbook data), Calculated from
+assumption (real statics under stated assumed loads), Rule of thumb, or AI estimate.
+There is no FEA, no certified strength or safety result, and the 3D chairs are
+educational reconstructions, not exact reproductions.

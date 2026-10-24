@@ -17,21 +17,40 @@ export interface JointSpec {
   tenonL: number;
   /** depth available in the mortised member */
   mortiseDepthMax: number;
+  /** rectangular tenons: width of the tenon (member width minus the shoulders) */
+  tenonW?: number;
+  /** rectangular tenons: "edge" = load bends the tenon across its width, "flat" = across its thickness */
+  bend?: "edge" | "flat";
   why: string;
 }
 
 export const JOINTS: Record<Typology, JointSpec[]> = {
   kangaroo: [
-    { id: "front", name: "Front leg → seat rail", kind: "mortise-tenon", tenonMember: 3.8, mortiseMember: 3.8, tenonT: 1.3, tenonL: 3, mortiseDepthMax: 5, why: "Carries the sitter's weight straight down and resists racking when they shuffle forward." },
-    { id: "rear", name: "Rear support → back post", kind: "mortise-tenon", tenonMember: 3.8, mortiseMember: 3.8, tenonT: 1.3, tenonL: 3, mortiseDepthMax: 5, why: "The most loaded joint: leaning back levers this joint open." },
+    { id: "front", name: "Front leg → seat rail", kind: "mortise-tenon", tenonMember: 3.8, mortiseMember: 3.8, tenonT: 1.3, tenonL: 3, mortiseDepthMax: 5, tenonW: 3.8, bend: "edge", why: "Carries the sitter's weight straight down and resists racking when they shuffle forward." },
+    { id: "rear", name: "Rear support → back post", kind: "mortise-tenon", tenonMember: 3.8, mortiseMember: 3.8, tenonT: 1.3, tenonL: 3, mortiseDepthMax: 5, tenonW: 3.8, bend: "edge", why: "The most loaded joint: leaning back levers this joint open." },
     { id: "rail", name: "Stretcher → side frame", kind: "round-tenon", tenonMember: 2.8, mortiseMember: 3.8, tenonT: 1.6, tenonL: 2.5, mortiseDepthMax: 3.8, why: "Holds the two sides apart so the chair doesn't fold sideways." },
+    { id: "backTop", name: "Back frame top rail → side", kind: "mortise-tenon", tenonMember: 3, mortiseMember: 3.2, tenonT: 1, tenonL: 2.5, mortiseDepthMax: 3, tenonW: 2.4, bend: "flat", why: "The sitter's back pushes the top rail backwards; its end joints take that bending." },
   ],
   japanese: [
     { id: "leg", name: "Leg → seat (wedged through)", kind: "round-tenon", tenonMember: 4, mortiseMember: 4.5, tenonT: 2.5, tenonL: 4.5, mortiseDepthMax: 4.5, why: "Every bit of load goes through four of these; splay levers them sideways." },
     { id: "spindle", name: "Spindle → crest rail", kind: "round-tenon", tenonMember: 2, mortiseMember: 3, tenonT: 1.3, tenonL: 2, mortiseDepthMax: 3, why: "Small, but many; the crest rail is thin, so drilling deep weakens it." },
-    { id: "arm", name: "Arm → back post", kind: "mortise-tenon", tenonMember: 2.5, mortiseMember: 3.5, tenonT: 0.9, tenonL: 2.5, mortiseDepthMax: 3.5, why: "People push on arms to stand up — a short-grain-sensitive joint." },
+    { id: "arm", name: "Arm → back post", kind: "mortise-tenon", tenonMember: 2.5, mortiseMember: 3.5, tenonT: 0.9, tenonL: 2.5, mortiseDepthMax: 3.5, tenonW: 3.8, bend: "flat", why: "People push on arms to stand up — a short-grain-sensitive joint." },
+    { id: "post", name: "Back post → seat (socket)", kind: "round-tenon", tenonMember: 3.5, mortiseMember: 3.5, tenonT: 2.3, tenonL: 3.5, mortiseDepthMax: 3.5, why: "Leaning back levers each post in its socket; the tenon at the seat surface takes all of it." },
   ],
 };
+
+/** Section modulus (cm³) of the tenon that carries the joint's bending. Round: πd³/32; rectangular: b·h²/6. */
+export function tenonSectionModulus(j: JointSpec, tenonT = j.tenonT): number {
+  if (j.kind === "round-tenon") return (Math.PI * tenonT ** 3) / 32;
+  const w = j.tenonW ?? j.tenonMember;
+  return j.bend === "edge" ? (tenonT * w * w) / 6 : (w * tenonT * tenonT) / 6;
+}
+
+export function jointSpec(typology: Typology, id: string): JointSpec {
+  const j = JOINTS[typology].find((x) => x.id === id);
+  if (!j) throw new Error(`unknown joint ${typology}/${id}`);
+  return j;
+}
 
 export type Level = "good" | "warn" | "bad";
 export interface JointCheck { rule: string; value: string; level: Level; advice: string }
@@ -45,7 +64,7 @@ export function checkJoint(j: JointSpec, tenonT: number, tenonL: number): JointC
     out.push({
       rule: "Tenon ≈ ⅓ of the member's thickness",
       value: `${r1(tenonT)} / ${j.tenonMember} cm = ${Math.round(ratio * 100)}%`,
-      level: ratio < 0.25 ? "bad" : ratio < 0.3 || ratio > 0.4 ? "warn" : ratio > 0.5 ? "bad" : "good",
+      level: ratio < 0.25 || ratio > 0.5 ? "bad" : ratio < 0.3 || ratio > 0.4 ? "warn" : "good",
       advice: ratio < 0.3 ? "Tenon is thin: it can snap at the shoulder. Thicken toward ⅓." : ratio > 0.4 ? "Tenon is fat: the cheeks around it in the mortise get thin. Go back toward ⅓." : "Classic proportion — tenon and the walls around it share the load evenly.",
     });
   } else {
@@ -72,7 +91,7 @@ export function checkJoint(j: JointSpec, tenonT: number, tenonL: number): JointC
     advice: depthRatio > 1 ? "Longer than the mortise can be — it would poke through. Shorten it." : lenRatio < 0.8 ? "Short tenon = little glue area; the joint works loose under leverage." : "Plenty of glue surface for this load.",
   });
   // Glue area: long-grain cheeks only (end grain glues poorly).
-  const glue = j.kind === "mortise-tenon" ? 2 * tenonL * Math.min(j.tenonMember * 1.3, 5) : Math.PI * tenonT * tenonL;
+  const glue = j.kind === "mortise-tenon" ? 2 * tenonL * (j.tenonW ?? j.tenonMember) : Math.PI * tenonT * tenonL;
   out.push({
     rule: "Long-grain glue area",
     value: `${r1(glue)} cm²`,

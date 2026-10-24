@@ -5,15 +5,20 @@ const parts = ["Front leg", "Rear leg", "Seat"];
 const j = (o: object) => "```json\n" + JSON.stringify(o) + "\n```";
 
 describe("lumber photo report validation", () => {
-  it("usable clear photo keeps grain and allowed parts", () => {
-    const r = parseLumberReport(j({ suitability: "usable", suitabilityReason: "clear face", species: "white oak", cut: "quarter-sawn", grainSlope: 22.4, bestFor: ["Front leg", "Made up"], avoidFor: [], advice: "ok", modelConfidence: "medium" }), parts);
+  it("usable clear photo keeps the grain impression and allowed parts", () => {
+    const r = parseLumberReport(j({ suitability: "usable", suitabilityReason: "clear face", species: "white oak", cut: "quarter-sawn", grain: "straight", bestFor: ["Front leg", "Made up"], avoidFor: [], advice: "ok", modelConfidence: "medium" }), parts);
     expect(r.kind).toBe("usable");
-    if (r.kind === "usable") { expect(r.grainSlope).toBe(22); expect(r.bestFor).toEqual(["Front leg"]); }
+    if (r.kind === "usable") { expect(r.grain).toBe("straight"); expect(r.bestFor).toEqual(["Front leg"]); }
   });
-  it("synthetic image abstains and drops numbers even if model supplied them", () => {
-    const r = parseLumberReport(j({ suitability: "synthetic_or_non_wood", suitabilityReason: "flat digital stripes", grainSlope: 18, bestFor: ["Front leg"] }), parts);
-    expect(r.kind).toBe("abstain");
+  it("never produces a numeric grain slope, even if the model sends one", () => {
+    const r = parseLumberReport(j({ suitability: "usable", grainSlope: 22, grain: "moderate" }), parts);
     expect(r).not.toHaveProperty("grainSlope");
+    expect(r.kind === "usable" && r.grain).toBe("moderate");
+  });
+  it("synthetic image abstains and drops readings even if model supplied them", () => {
+    const r = parseLumberReport(j({ suitability: "synthetic_or_non_wood", suitabilityReason: "flat digital stripes", grain: "straight", bestFor: ["Front leg"] }), parts);
+    expect(r.kind).toBe("abstain");
+    expect(r).not.toHaveProperty("grain");
     expect(r).not.toHaveProperty("bestFor");
   });
   it("blurry wood abstains as insufficient detail", () => {
@@ -22,11 +27,11 @@ describe("lumber photo report validation", () => {
   });
   it("malformed output abstains as uncertain", () => {
     expect(parseLumberReport("not json", parts).kind).toBe("abstain");
-    expect(parseLumberReport(j({ suitability: "usable", grainSlope: -3 }), parts).kind).toBe("abstain");
+    expect(parseLumberReport(j({ suitability: "usable", grain: "wavy" }), parts).kind).toBe("abstain");
     expect(parseLumberReport(j({ suitability: "great" }), parts).kind).toBe("abstain");
   });
   it("usable but no grain reading gives no 'good for' parts", () => {
-    const r = parseLumberReport(j({ suitability: "usable", grainSlope: null, bestFor: ["Front leg"], avoidFor: ["Rear leg"] }), parts);
+    const r = parseLumberReport(j({ suitability: "usable", grain: null, bestFor: ["Front leg"], avoidFor: ["Rear leg"] }), parts);
     if (r.kind !== "usable") throw new Error("expected usable");
     expect(r.bestFor).toEqual([]);
     expect(r.avoidFor).toEqual(["Rear leg"]);

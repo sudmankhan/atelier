@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Maximize2, Minimize2, ScanEye, X } from "lucide-react";
-import { BLANK, JOINT_FACTOR, WOODS, evaluateLab, labScore, tipMargin, type Back, type Base, type LabDesign, type Level } from "@/lib/lab";
+import { BLANK, JOINT_TYPES, WOODS, evaluateLab, labTipping, type Back, type Base, type LabDesign, type Level } from "@/lib/lab";
 import { StudioShell } from "@/components/three/StudioCanvas";
 import { LabModel } from "@/components/three/LabModel";
 import { cn } from "@/lib/utils";
 import { labRearPivotZ } from "@/lib/statics";
 import { StaticsPanel } from "./StaticsPanel";
 import { BeamPanel } from "./BeamPanel";
+import { ProvenanceBadge } from "./ProvenanceBadge";
 
 const BASES: { id: Base; label: string }[] = [
   { id: "four", label: "4 straight legs" },
@@ -29,9 +30,10 @@ export function ComponentLab() {
   const [xray, setXray] = useState(false);
   const [panel, setPanel] = useState(true);
   const set = <K extends keyof LabDesign>(k: K, v: LabDesign[K]) => { setD((x) => ({ ...x, [k]: v })); };
-  const results = evaluateLab(d);
-  const score = labScore(results);
-  const tips = tested && tipMargin(d) < 0;
+  const [knee, setKnee] = useState<number | "">("");
+  const results = evaluateLab(d, knee === "" ? {} : { poplitealHeight: knee });
+  const tip = labTipping(d);
+  const tips = tested && results.some((r) => r.area === "Stability" && r.level === "bad");
   return (
     <main className="relative min-w-0 flex-1 overflow-hidden">
       <div className="absolute inset-0">
@@ -59,7 +61,7 @@ export function ComponentLab() {
         <div className="absolute z-10 left-5 top-24 bottom-5 w-80 space-y-4 overflow-y-auto rounded-xl border hairline bg-card/95 p-4 shadow-sm backdrop-blur">
           <Pick title="Base" opts={BASES} v={d.base} on={(v) => set("base", v)} />
           <Pick title="Back" opts={BACKS} v={d.back} on={(v) => set("back", v)} />
-          <Pick title="Joints" opts={Object.entries(JOINT_FACTOR).map(([id, j]) => ({ id: id as LabDesign["joint"], label: j.name }))} v={d.joint} on={(v) => set("joint", v)} />
+          <Pick title="Joints" opts={Object.entries(JOINT_TYPES).map(([id, j]) => ({ id: id as LabDesign["joint"], label: j.name }))} v={d.joint} on={(v) => set("joint", v)} />
           <Pick title="Wood" opts={Object.entries(WOODS).map(([id, x]) => ({ id: id as LabDesign["wood"], label: x.name }))} v={d.wood} on={(v) => set("wood", v)} />
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
             <Num label="Seat height" u="cm" v={d.seatHeight} min={30} max={60} on={(n) => set("seatHeight", n)} />
@@ -73,6 +75,10 @@ export function ComponentLab() {
           <label className="flex items-center gap-2 text-xs">
             <input type="checkbox" checked={d.stretchers} onChange={(e) => set("stretchers", e.target.checked)} /> Stretchers between the legs
           </label>
+          <label className="block text-xs">
+            <span>Your knee height (optional, cm)</span>
+            <input type="number" min={30} max={65} value={knee} placeholder="floor to back of knee, seated" onChange={(e) => setKnee(e.target.value === "" ? "" : +e.target.value)} className="mt-1 w-full rounded border hairline bg-background px-2 py-1" />
+          </label>
           <div className="flex gap-2">
             <button onClick={() => setTested(true)} className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">Test this chair</button>
             <button onClick={() => { setD(BLANK); setTested(false); }} className="rounded-md border hairline px-4 py-2 text-sm">Clear bench</button>
@@ -83,7 +89,7 @@ export function ComponentLab() {
           </details>
           <details className="rounded-md border hairline p-2">
             <summary className="cursor-pointer text-xs text-muted-foreground">Static tipping check (torque model)</summary>
-            <div className="mt-2"><StaticsPanel pivotZ={labRearPivotZ(d)} seatRearZ={-d.seatDepth / 2} seatFrontZ={d.seatDepth / 2} seatHeight={d.seatHeight} /></div>
+            <div className="mt-2"><StaticsPanel pivotZ={labRearPivotZ(d)} seatRearZ={-d.seatDepth / 2} seatFrontZ={d.seatDepth / 2} seatHeight={d.seatHeight} chair={tip.mass} reclineDeg={d.back === "none" ? 0 : d.backAngle - 90} pushHeightCm={tip.pushHeightCm} /></div>
           </details>
           <details className="rounded-md border hairline p-2">
             <summary className="cursor-pointer text-xs text-muted-foreground">Bending analysis (straight leg, educational)</summary>
@@ -93,30 +99,34 @@ export function ComponentLab() {
       )}
 
       {tested && (
-        <ResultsCard results={results} score={score} note={WOODS[d.wood].note} tips={tips} onClose={() => setTested(false)} />
+        <ResultsCard results={results} note={WOODS[d.wood].note} tips={tips} onClose={() => setTested(false)} />
       )}
     </main>
   );
 }
 
-function ResultsCard({ results, score, note, tips, onClose }: { results: ReturnType<typeof evaluateLab>; score: number; note: string; tips: boolean; onClose: () => void }) {
+function ResultsCard({ results, note, tips, onClose }: { results: ReturnType<typeof evaluateLab>; note: string; tips: boolean; onClose: () => void }) {
   const [min, setMin] = useState(false);
+  const counts = { good: 0, warn: 0, bad: 0 };
+  for (const r of results) counts[r.level]++;
   return (
     <div className="absolute z-10 right-5 bottom-5 w-80 rounded-xl border hairline bg-card/95 p-4 shadow-sm backdrop-blur">
       <div className="flex items-center justify-between">
         <div className="eyebrow">Test results</div>
         <div className="flex items-center gap-2">
-          <span className={cn("font-mono text-sm", score >= 80 ? "text-teal" : score >= 50 ? "text-walnut" : "text-alert")}>{score}/100</span>
+          <span className="font-mono text-[11px]">
+            <span className="text-teal">{counts.good} good</span> · <span className="text-walnut">{counts.warn} to watch</span> · <span className="text-alert">{counts.bad} problem{counts.bad === 1 ? "" : "s"}</span>
+          </span>
           <button onClick={() => setMin(!min)} aria-label="Minimize results">{min ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}</button>
           <button onClick={onClose} aria-label="Close results"><X className="h-3.5 w-3.5" /></button>
         </div>
       </div>
       {!min && (
         <div className="mt-2 max-h-[50vh] space-y-2 overflow-y-auto">
-          {tips && <p className="text-xs text-alert">The model is tilted back because the heuristic estimate suggests it may tip when someone leans.</p>}
+          {tips && <p className="text-xs text-alert">The model is tilted back because the static tipping check says a gentle lean tips it.</p>}
           {results.map((r, k) => (
             <div key={k} className={cn("rounded-md border-l-2 bg-background p-2.5", tone[r.level])}>
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{r.area}</div>
+              <div className="flex items-center justify-between gap-2"><div className="text-[10px] uppercase tracking-wide text-muted-foreground">{r.area}</div><ProvenanceBadge kind={r.basis} topic="lab" /></div>
               <div className={cn("text-sm", txt[r.level])}>{r.title}</div>
               <div className="mt-0.5 text-xs text-muted-foreground">{r.detail}</div>
             </div>
@@ -140,7 +150,7 @@ function SideView({ d }: { d: LabDesign }) {
   const recl = ((d.backAngle - 90 + 5) * Math.PI) / 180;
   const bx = x1 + Math.sin(recl) * d.backHeight * s;
   const by = sy - Math.cos(recl) * d.backHeight * s;
-  const tm = tipMargin(d);
+  const tip = labTipping(d);
   return (
     <svg viewBox={`0 0 340 ${H}`} className="w-full">
       <line x1={0} y1={fy} x2={340} y2={fy} className="stroke-muted-foreground" />
@@ -159,11 +169,12 @@ function SideView({ d }: { d: LabDesign }) {
       <line x1={x0 - 4} y1={sy} x2={x1 + 4} y2={sy} className="stroke-foreground" strokeWidth={6} />
       {d.back !== "none" && <line x1={x1} y1={sy} x2={bx} y2={by} className="stroke-foreground" strokeWidth={d.back === "panel" ? 8 : 4} strokeDasharray={d.back === "spindles" ? "2 3" : d.back === "slats" ? "10 4" : undefined} />}
       {/* sitter's leaning weight line */}
-      {(() => { const cx = x0 + (d.seatDepth * 0.65 + Math.max(0, d.backAngle - 95) * (d.back === "none" ? 0 : 0.6) + (d.back === "none" ? 0 : 3)) * s; return (
-        <g><line x1={cx} y1={sy - 60} x2={cx} y2={fy} className={tm < 0 ? "stroke-alert" : "stroke-teal"} strokeDasharray="4 3" />
-          <text x={cx + 4} y={sy - 50} fontSize={9} className={tm < 0 ? "fill-alert" : "fill-teal"}>sitter's weight (leaning)</text></g>
+      {(() => { const cx = x1 - (tip.comZ + d.seatDepth / 2) * s; const px = x1 - (tip.pivotZ + d.seatDepth / 2) * s; const bad = tip.result.status !== "stays"; return (
+        <g><line x1={cx} y1={sy - 60} x2={cx} y2={fy} className={bad ? "stroke-alert" : "stroke-teal"} strokeDasharray="4 3" />
+          <text x={cx - 4} y={sy - 50} fontSize={9} textAnchor="end" className={bad ? "fill-alert" : "fill-teal"}>sitter + chair weight</text>
+          <circle cx={px} cy={fy} r={3} className="fill-walnut" /></g>
       ); })()}
-      <text x={6} y={14} fontSize={9} className="fill-muted-foreground">Heuristic: if the dashed line falls behind the rear foot, tipping is likely.</text>
+      <text x={6} y={14} fontSize={9} className="fill-muted-foreground">Dashed line = combined centre of mass; dot = rear foot (pivot). {tip.result.thresholdF === null ? "" : `Tips at ${Math.round(tip.result.thresholdF)} N of lean.`}</text>
     </svg>
   );
 }

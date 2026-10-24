@@ -14,7 +14,7 @@ The Gateway SDK is `@lovable.dev/ai-gateway` → `generateChatCompletion({ model
 ## 1. Mentor — RAG pipeline (`askMaster`)
 Input (`MentorInput`): `question` (≤1200 chars), `history` (last 8 turns), `context`:
 `typology, section, partName, lesson, params, changed[], observations[]`.
-`observations` are the deterministic facts computed in the browser by the consequence engine — the model must treat them as authoritative.
+`observations` are the deterministic facts computed in the browser — geometry from the consequence engine, plus `[CALCULATED]` joint stress, tipping and movement lines and their `[ASSUMPTION]` loads from `src/lib/chair/calculated.ts`. The model must treat them as authoritative and quote numbers only from them. `[HEURISTIC]` lines are craft rules of thumb. `mentor/claims.ts` adds `[LIMITATION]` facts for capacity/safety/bending questions and flags overclaims and numbers not in the context.
 
 Steps:
 1. **Retrieve**: `retrieveSync(question, { changedParams, typology }, 4)` from `src/lib/knowledge/retrieve.ts`. It is *keyword scoring* (`scoreEntry`) over `KNOWLEDGE` entries in `library.ts` (topic, principle, explanation, tags, typology/part/param boosts). Not vector embeddings. The `Retriever` interface allows swapping in embeddings later.
@@ -31,7 +31,7 @@ Input: `image` data URL (jpeg/png/webp, ≤6 MB string), `board {l,w,t}` cm, `ty
 Prompt: strict chairmaker inspecting a photo; estimate species, cut (flat/quarter/rift/unknown), grain slope "1 in N" (null if not visible), defects; assign `bestFor`/`avoidFor` **only from the given parts**; apply 1:12 rule to loaded long parts; never claim safe; advice <70 words; reply ONLY JSON.
 Message content = `[ {type:"text"}, {type:"image_url", image_url:{url}} ]`.
 Post-process: slice first `{`..last `}`, JSON.parse, sanitize every field, filter part names against the allowed set, clamp confidence. Returns `{ ok, report: LumberReport | null, error }`.
-The returned `grainSlope` is fed into the deterministic `matchStock` — the AI only supplies an estimate; verdicts are computed by code.
+The model returns a descriptive `grain` look (`straight | moderate | steep`), shown as an "AI estimate". It is never converted into a number or written into the board; grain slope for the matcher is only what the user types.
 
 ## 3. ElevenLabs voice
 `voiceStatus` (GET) → `{configured}`. `speakMaster` (POST `{text≤1500}`) → fetch `https://api.elevenlabs.io/v1/text-to-speech/{voice}?output_format=mp3_44100_128`, returns base64 mp3. UI hides voice when not configured.
@@ -47,5 +47,5 @@ The returned `grainSlope` is fed into the deterministic `matchStock` — the AI 
 - The model must first classify the image: usable / insufficient_detail / synthetic_or_non_wood / uncertain.
 - `parseLumberReport` validates the reply with zod. Anything not "usable", or malformed, becomes an abstention with photo tips and no grain number or part advice. No grain reading → no "good for" parts.
 - Model confidence is shown as the model's own label, never as a probability; no confidence threshold is applied (no calibration data).
-- A grain estimate is never written to the board automatically; the user clicks "Use 1 in N" to apply it.
+- The grain look is never written to the board; there is no "apply" button.
 - The suitability check is itself model-based and can be wrong.

@@ -1,7 +1,7 @@
 // Rule evaluation: deterministic geometry facts + reviewed educational guidance.
 // No safety scores, no comfort guarantees.
 import { BASELINE, type ChairParams, type NumericParam } from "./params";
-import { computeGeometry, type ChairGeometry } from "./geometry";
+import { backBowCm, computeGeometry, type ChairGeometry } from "./geometry";
 import type { AnyPartId, PartId } from "./parts";
 
 export type ConnectionId = "frontJoint" | "rearJoint" | "railJoints" | "backTopJoint";
@@ -195,8 +195,8 @@ export function computeConsequences(
   if (changed.includes("backCurve")) {
     geometry.push({
       id: "g-curve",
-      title: `Back post bow ${f1(p.backCurve * 7)} cm`,
-      detail: `The back post now bows ${f1(p.backCurve * 7)} cm behind its straight line (original ${f1(base.backCurve * 7)} cm).`,
+      title: `Back post bow ${f1(backBowCm(p))} cm`,
+      detail: `The back post now bows ${f1(backBowCm(p))} cm behind its straight line (original ${f1(backBowCm(base))} cm).`,
       parts: ["sideFrame", "backrest"],
     });
     craft.push({

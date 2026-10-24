@@ -6,10 +6,12 @@ import { KERF, partIdFor, RUNOUT_LIMIT, type Board } from "@/lib/chair/stock";
 import { allocate, type Allocation, type StockBoard } from "@/lib/chair/allocate";
 import { Plus, X } from "lucide-react";
 import { inspectLumber, type LumberReport } from "@/lib/lumber.functions";
+import { GRAIN_LOOK_TEXT } from "@/lib/lumberReport";
 import type { ChairParams } from "@/lib/chair/params";
 import type { JapaneseParams } from "@/lib/chair/japanese/params";
 import { useWorkshop, type AnyPartId } from "./store";
 import { cn } from "@/lib/utils";
+import { ProvenanceBadge } from "./ProvenanceBadge";
 
 const PRESETS: { label: string; b: Board }[] = [
   { label: "8/4 straight walnut · 120 cm", b: { l: 120, w: 18, t: 5.1, grainSlope: 25 } },
@@ -65,7 +67,7 @@ export function LumberStudio() {
     const r = await inspect({ data: { image: url, board: { l: b.l, w: b.w, t: b.t }, typology: w.typology, parts: cuts.map((c) => c.part) } }).catch(() => null);
     setBusy(false);
     if (!r || !r.ok) { setErr(r?.error ?? "Couldn't inspect the photo."); return; }
-    setReport(r.report); // grain is never applied automatically — user must confirm below
+    setReport(r.report);
   }
 
   function pick(part: string) {
@@ -115,7 +117,7 @@ export function LumberStudio() {
 
       <div className="rounded-md border hairline p-3">
         <div className="flex items-center justify-between">
-          <div className="eyebrow">Photo inspection (AI) · {b.id}</div>
+          <div className="flex items-center justify-between gap-2"><div className="eyebrow">Photo inspection (AI) · {b.id}</div><ProvenanceBadge kind="ai" topic="lumber" /></div>
           <button onClick={() => fileRef.current?.click()} disabled={busy} className="flex items-center gap-1 rounded-md bg-teal px-2 py-1 text-[11px] text-primary-foreground disabled:opacity-60">
             {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />} {photo ? "New photo" : "Upload board photo"}
           </button>
@@ -134,24 +136,19 @@ export function LumberStudio() {
         )}
         {report && report.kind === "usable" && (
           <div className="mt-2 space-y-1.5">
-            <div><span className="font-medium">{report.species}</span> · {report.cut} · grain {report.grainSlope ? `≈1 in ${report.grainSlope}` : "unclear"} <span className="text-muted-foreground">(model says "{report.modelConfidence}" — not a measured probability)</span></div>
+            <div><span className="font-medium">{report.species}</span> · {report.cut} · grain {report.grain ? GRAIN_LOOK_TEXT[report.grain] : "unclear"} <span className="text-muted-foreground">(model says "{report.modelConfidence}" — not a measured probability)</span></div>
             {report.defects.length > 0 && <div className="text-walnut">Defects: {report.defects.join(", ")}</div>}
             {report.bestFor.length > 0 && <div className="text-teal">Good for: {report.bestFor.join(", ")}</div>}
             {report.avoidFor.length > 0 && <div className="text-alert">Avoid for: {report.avoidFor.join(", ")}</div>}
             <p className="text-muted-foreground">{report.advice}</p>
-            {report.grainSlope !== null && b.grainSlope !== report.grainSlope && (
-              <button onClick={() => set("grainSlope", report.grainSlope)} className="rounded-md border hairline px-2 py-1 text-[11px]">
-                Use 1 in {report.grainSlope} for {b.id}{b.grainSlope ? ` (replaces your 1 in ${b.grainSlope})` : ""}
-              </button>
-            )}
-            <p className="text-[10px] text-muted-foreground">Judged from a photo by an AI that can be wrong — confirm by splitting or reading the edge grain before cutting structural parts.</p>
+            <p className="text-[10px] text-muted-foreground">Judged from a photo by an AI that can be wrong. It never changes the board's grain setting: measure the slope yourself (scribe a line along a split or a pore line) and type it in above.</p>
           </div>
         )}
-        {!photo && <p className="mt-1 text-muted-foreground">Optional: snap the selected board's face in good light. The grain slope it reads feeds that board's allocation.</p>}
+        {!photo && <p className="mt-1 text-muted-foreground">Optional: snap the selected board's face in good light. You get a species guess, visible defects and a rough grain impression — advice only, never a number fed into the layout.</p>}
       </div>
 
       <div>
-        <div className="eyebrow">Shared cutting layout</div>
+        <div className="flex items-center justify-between gap-2"><div className="eyebrow">Shared cutting layout</div><ProvenanceBadge kind="calculated" topic="lumber" /></div>
         <p className="mt-1 text-[10px] text-muted-foreground">Heuristic layout (best-fit), not a guaranteed optimum. Conceptual cutting layout, not a guaranteed saw-cut sequence — some layouts may need non-through cuts.</p>
         <div className="mt-2 space-y-3">
           {boards.map((bd) => <BoardLayout key={bd.id} b={bd} a={alloc} colorOf={colorOf} />)}

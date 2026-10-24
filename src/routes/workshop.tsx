@@ -5,8 +5,9 @@ import { Stage } from "@/components/workshop/Stage";
 import { Bench } from "@/components/workshop/Bench";
 import { Discover, Library, ProgressPage, Projects } from "@/components/workshop/Pages";
 import { ComponentLab } from "@/components/workshop/ComponentLab";
+import { HowItWorks } from "@/components/workshop/HowItWorks";
 
-const SECTIONS: Section[] = ["discover", "study", "design", "build", "lab", "projects", "library", "progress"];
+const SECTIONS: Section[] = ["discover", "study", "design", "build", "lab", "projects", "library", "progress", "how"];
 
 export const Route = createFileRoute("/workshop")({
   ssr: false,
@@ -46,5 +47,6 @@ function Center() {
   if (section === "lab") return <ComponentLab />;
   if (section === "library") return <Library />;
   if (section === "progress") return <ProgressPage />;
+  if (section === "how") return <HowItWorks />;
   return <Stage />;
 }

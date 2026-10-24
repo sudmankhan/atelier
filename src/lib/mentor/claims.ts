@@ -11,7 +11,7 @@ export function detectClaims(question: string): ClaimKind[] {
 }
 
 const LIMITS =
-  "This app has no validated load capacity or safety rating for any chair. It can compute: chair geometry, the idealized static tipping moment (Tipping tab), and an educational cantilever bending estimate for straight members in Component Lab. It cannot compute: joint strength, glue-line failure, shear, buckling, splitting, defects, creep or fatigue.";
+  "This app has no validated load capacity or safety rating for any chair. It can compute, under stated assumed loads: chair geometry, the static tipping check including the chair's own weight, the bending moment at each key joint from a free-body diagram, the bending stress on the tenon or member section compared with a reference stress derived from USDA Wood Handbook clear-wood data, seasonal wood movement, and an educational cantilever estimate for straight members. It cannot compute: glue-line failure, screw withdrawal, shear, buckling, splitting, knots or other defects, creep, fatigue or impact.";
 
 export function mandatoryFacts(kinds: ClaimKind[], typology: "kangaroo" | "japanese"): string[] {
   const f: string[] = [];
@@ -21,8 +21,8 @@ export function mandatoryFacts(kinds: ClaimKind[], typology: "kangaroo" | "japan
   if (kinds.includes("bending")) {
     f.push(
       typology === "kangaroo"
-        ? "[LIMITATION] The Kangaroo back post and side frame are curved; the straight cantilever beam model does not apply, so no bending stress or deflection number exists for them. Only qualitative reasoning (longer lever, thinner section -> more flex) is allowed, labelled as heuristic."
-        : "[LIMITATION] The Japanese crest rail is curved and the back is a spindle/joint system; the straight cantilever model does not apply to it, so there is no computed bending number. Only qualitative reasoning is allowed, labelled as heuristic.",
+        ? "[LIMITATION] Joint and back-post bending stresses are computed: quote only the [CALCULATED] lines, with their assumed loads. The straight cantilever deflection model does not apply to the curved Kangaroo side frame, so no deflection (flex) number exists for it; only qualitative reasoning about flex is allowed, labelled as heuristic."
+        : "[LIMITATION] Leg, arm and back-post joint stresses are computed: quote only the [CALCULATED] lines, with their assumed loads. The straight cantilever deflection model does not apply to the curved crest rail or the spindle back as a system, so no deflection (flex) number exists for them; only qualitative reasoning is allowed, labelled as heuristic.",
     );
   }
   return f;

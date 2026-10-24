@@ -16,8 +16,8 @@ STEP 1 — suitability. Decide first whether the image actually shows a real, ph
 - "synthetic_or_non_wood": a drawing, render, digital pattern, uniform stripes, text, or any non-wood subject.
 - "uncertain": you cannot tell.
 Be skeptical: regular perfect stripes with no pores, rays, colour variation or texture are synthetic. If not "usable", set every other field to null and explain why in suitabilityReason.
-STEP 2 (only if usable): species (or "unknown"), cut (flat-sawn | quarter-sawn | rift-sawn | unknown), grainSlope as N in "1 in N" relative to the long edge, or null if not readable; visible defects. bestFor/avoidFor may only use names from PARTS. Apply the 1:12 rule for legs, posts, spindles, rails. Never invent moisture content, strength or measurements. Never claim the board is safe. advice: under 70 words.
-Reply ONLY with JSON: {"suitability":string,"suitabilityReason":string,"species":string|null,"cut":string|null,"grainSlope":number|null,"defects":string[]|null,"bestFor":string[]|null,"avoidFor":string[]|null,"advice":string|null,"modelConfidence":"low"|"medium"|"high"|null}`;
+STEP 2 (only if usable): species (or "unknown"), cut (flat-sawn | quarter-sawn | rift-sawn | unknown), grain as a visual impression of how the fibres run relative to the long edge: "straight", "moderate" or "steep", or null if not readable. Never give a numeric slope; a photo cannot measure it. Visible defects. bestFor/avoidFor may only use names from PARTS. If grain looks steep, list legs, posts, spindles and rails under avoidFor. Never invent moisture content, strength or measurements. Never claim the board is safe. advice: under 70 words.
+Reply ONLY with JSON: {"suitability":string,"suitabilityReason":string,"species":string|null,"cut":string|null,"grain":"straight"|"moderate"|"steep"|null,"defects":string[]|null,"bestFor":string[]|null,"avoidFor":string[]|null,"advice":string|null,"modelConfidence":"low"|"medium"|"high"|null}`;
 
 export const inspectLumber = createServerFn({ method: "POST" })
   .validator((i: LumberInput) => {

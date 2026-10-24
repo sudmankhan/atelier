@@ -1,4 +1,5 @@
 import type { AnyPartId } from "@/components/workshop/store";
+import { HANDBOOK_URL } from "@/lib/chair/woodProperties";
 
 export interface KnowledgeEntry {
   id: string;
@@ -14,6 +15,7 @@ export interface KnowledgeEntry {
 }
 
 const WORKSHOP = "Traditional workshop practice (educational summary)";
+const HANDBOOK_TITLE = "Wood Handbook (USDA Forest Products Laboratory, FPL-GTR-282, 2021)";
 
 // Curated seed library. Only these source titles may be cited by the mentor.
 export const KNOWLEDGE: KnowledgeEntry[] = [
@@ -197,8 +199,8 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
     principle: "Wood shrinks and swells with moisture, mostly across the grain.",
     explanation:
       "Wood changes dimension as its moisture content changes, with far more movement across the grain than along it. Furniture joints and panels must be designed so this movement doesn't crack parts or break glue lines. Wide slab seats and wide side frames are where this bites first.",
-    sourceTitle: "Wood Handbook (USDA Forest Products Laboratory, FPL-GTR-190)",
-    sourceUrl: "",
+    sourceTitle: HANDBOOK_TITLE,
+    sourceUrl: HANDBOOK_URL,
     parts: ["sideFrame", "connections", "rails", "seatSlab"],
     params: ["seatWidth"],
     keywords: ["movement", "moisture", "shrink", "swell", "grain", "season", "crack", "wood", "slab"],
@@ -241,5 +243,17 @@ export const KNOWLEDGE: KnowledgeEntry[] = [
     params: ["seatWidth", "seatDepth"],
     keywords: ["cane", "rattan", "weave", "woven", "seat", "back", "spline", "breathable"],
     chairs: ["kangaroo"],
+  },
+  {
+    id: "clear-wood-strength",
+    topic: "Clear-wood strength and reference stress",
+    principle: "Handbook strength values are averages from small defect-free samples, not safe working stresses.",
+    explanation:
+      "The Wood Handbook tabulates modulus of rupture (bending strength) and modulus of elasticity (stiffness) as means from small clear specimens. Strength varies piece to piece (coefficient of variation about 16% for bending strength, Table 5–6), so engineers start from the 5th percentile and then divide by about 2.1 for an assumed 10-year load duration and safety (Chapter 7). Knots and sloping grain lower real lumber further.",
+    sourceTitle: HANDBOOK_TITLE,
+    sourceUrl: HANDBOOK_URL,
+    parts: ["connections", "sideFrame", "legs", "rails"],
+    params: [],
+    keywords: ["strength", "stress", "mor", "rupture", "stiff", "modulus", "safe", "load", "break", "fail", "bend", "variation"],
   },
 ];

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { BookOpen, Compass, FlaskConical, FolderOpen, Hammer, Ruler, ScanSearch, Sprout } from "lucide-react";
+import { BookOpen, CircleHelp, Compass, FlaskConical, FolderOpen, Hammer, Ruler, ScanSearch, Sprout } from "lucide-react";
 import { useWorkshop, type Section } from "./store";
 import { BUILD_STEPS } from "@/lib/lessons";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ const NAV: { id: Section; label: string; icon: typeof Compass }[] = [
   { id: "projects", label: "My Projects", icon: FolderOpen },
   { id: "library", label: "Learning Library", icon: BookOpen },
   { id: "progress", label: "Apprentice Progress", icon: Sprout },
+  { id: "how", label: "How it works", icon: CircleHelp },
 ];
 
 export function Sidebar() {
