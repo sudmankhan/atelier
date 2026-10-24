@@ -2,6 +2,7 @@ import { useState } from "react";
 import { cantileverEndLoad, toMm, toMPa, woodE_Pa } from "@/lib/chair/beam";
 import { DEFAULT_MOISTURE_NOTE, WOOD_PROPERTIES, type MoistureCondition, type WoodId } from "@/lib/chair/woodProperties";
 import { cn } from "@/lib/utils";
+import { ProvenanceBadge } from "./ProvenanceBadge";
 
 /** Educational cantilever bending estimate for a straight rectangular member. Inputs in cm/N. */
 export function BeamPanel({ initialLengthCm, initialSectionCm, initialWood }: { initialLengthCm: number; initialSectionCm: number; initialWood: WoodId }) {
@@ -23,7 +24,7 @@ export function BeamPanel({ initialLengthCm, initialSectionCm, initialWood }: { 
 
   return (
     <div className="space-y-3 text-xs">
-      <div className="eyebrow">Bending analysis — educational estimate</div>
+      <div className="flex items-center justify-between gap-2"><div className="eyebrow">Bending analysis — educational estimate</div><ProvenanceBadge kind="assumption" topic="beam" /></div>
       <p className="text-muted-foreground">Idealized straight rectangular member, fixed at one end, point load at the free end. Use it for straight legs, rails or stretchers only — not curved parts or whole joint systems.</p>
       <svg viewBox="0 0 300 130" className="w-full rounded-md bg-background">
         <rect x={x0 - 10} y={y0 - 25} width={10} height={50} className="fill-muted-foreground" />

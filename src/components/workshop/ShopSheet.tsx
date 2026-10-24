@@ -3,6 +3,7 @@ import { japaneseShop, kangarooShop, ALLOW } from "@/lib/chair/shop";
 import type { ChairParams } from "@/lib/chair/params";
 import type { JapaneseParams } from "@/lib/chair/japanese/params";
 import { useWorkshop } from "./store";
+import { ProvenanceBadge } from "./ProvenanceBadge";
 
 const d = (x: { l: number; w: number; t: number }) => `${x.l} × ${x.w} × ${x.t}`;
 
@@ -15,7 +16,7 @@ export function ShopSheet() {
   return (
     <div className="space-y-6 p-5 text-xs">
       <div>
-        <div className="eyebrow">Cut list · cm (L × W × T)</div>
+        <div className="flex items-center justify-between gap-2"><div className="eyebrow">Cut list · cm (L × W × T)</div><ProvenanceBadge kind="calculated" topic="shop" /></div>
         <p className="mt-1 text-muted-foreground">
           Rough = what you saw from the board: +{ALLOW.length} length, +{ALLOW.width} width, +{ALLOW.thickness} thickness, then plane down to finished. About <span className="font-mono text-foreground">{s.boardFeet} board feet</span> of rough timber before waste.
         </p>

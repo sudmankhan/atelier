@@ -10,7 +10,7 @@ import type { CameraPreset } from "@/lib/lessons";
 export type { Typology, AnyPartId };
 export type AnyParams = ChairParams | JapaneseParams;
 export type AnyConsequences = Consequences | JConsequences;
-export type Section = "discover" | "study" | "design" | "build" | "lab" | "projects" | "library" | "progress";
+export type Section = "discover" | "study" | "design" | "build" | "lab" | "projects" | "library" | "progress" | "how";
 export type BenchTab = "inspect" | "geometry" | "feedback" | "shop" | "lumber" | "joints" | "tipping" | "ask";
 
 export interface ChatMsg {
@@ -24,6 +24,8 @@ interface Store {
   setTypology: (t: Typology) => void;
   section: Section;
   setSection: (s: Section) => void;
+  howTopic: string | null;
+  openHow: (topic: string | null) => void;
   selected: AnyPartId | null;
   select: (p: AnyPartId | null) => void;
   params: AnyParams;
@@ -63,6 +65,7 @@ const Ctx = (g.__workshopCtx ??= createContext<Store | null>(null));
 export function WorkshopProvider({ initialSection, children }: { initialSection: Section; children: ReactNode }) {
   const [typology, setTypologyState] = useState<Typology>("kangaroo");
   const [section, setSection] = useState<Section>(initialSection);
+  const [howTopic, setHowTopic] = useState<string | null>(null);
   const [selected, select] = useState<AnyPartId | null>(null);
   const [kParams, setKParams] = useState<ChairParams>(BASELINE);
   const [jParams, setJParams] = useState<JapaneseParams>(J_BASELINE);
@@ -127,6 +130,11 @@ export function WorkshopProvider({ initialSection, children }: { initialSection:
     setTypology,
     section,
     setSection,
+    howTopic,
+    openHow: (topic) => {
+      setHowTopic(topic);
+      setSection("how");
+    },
     selected,
     select,
     params,

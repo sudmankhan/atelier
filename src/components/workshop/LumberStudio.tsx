@@ -11,6 +11,7 @@ import type { ChairParams } from "@/lib/chair/params";
 import type { JapaneseParams } from "@/lib/chair/japanese/params";
 import { useWorkshop, type AnyPartId } from "./store";
 import { cn } from "@/lib/utils";
+import { ProvenanceBadge } from "./ProvenanceBadge";
 
 const PRESETS: { label: string; b: Board }[] = [
   { label: "8/4 straight walnut · 120 cm", b: { l: 120, w: 18, t: 5.1, grainSlope: 25 } },
@@ -116,7 +117,7 @@ export function LumberStudio() {
 
       <div className="rounded-md border hairline p-3">
         <div className="flex items-center justify-between">
-          <div className="eyebrow">Photo inspection (AI) · {b.id}</div>
+          <div className="flex items-center justify-between gap-2"><div className="eyebrow">Photo inspection (AI) · {b.id}</div><ProvenanceBadge kind="ai" topic="lumber" /></div>
           <button onClick={() => fileRef.current?.click()} disabled={busy} className="flex items-center gap-1 rounded-md bg-teal px-2 py-1 text-[11px] text-primary-foreground disabled:opacity-60">
             {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />} {photo ? "New photo" : "Upload board photo"}
           </button>
@@ -147,7 +148,7 @@ export function LumberStudio() {
       </div>
 
       <div>
-        <div className="eyebrow">Shared cutting layout</div>
+        <div className="flex items-center justify-between gap-2"><div className="eyebrow">Shared cutting layout</div><ProvenanceBadge kind="calculated" topic="lumber" /></div>
         <p className="mt-1 text-[10px] text-muted-foreground">Heuristic layout (best-fit), not a guaranteed optimum. Conceptual cutting layout, not a guaranteed saw-cut sequence — some layouts may need non-through cuts.</p>
         <div className="mt-2 space-y-3">
           {boards.map((bd) => <BoardLayout key={bd.id} b={bd} a={alloc} colorOf={colorOf} />)}
