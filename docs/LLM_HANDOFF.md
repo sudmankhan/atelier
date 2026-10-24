@@ -1,15 +1,19 @@
 # Handoff guide for another developer / LLM
 
 ## Run locally
+
 ```bash
 bun install
 bun dev                 # http://localhost:8080 (or Vite default)
 bunx vitest run         # all tests (chair engine, lab, stock, routing)
 bunx tsgo --noEmit      # typecheck (or tsc)
 ```
-AI features need a Lovable AI Gateway key (`LOVABLE_API_KEY`) — automatic on Lovable. Voice needs `ELEVENLABS_API_KEY`. Without keys, everything except Mentor/Lumber photo still works.
+
+AI features need a server-side Google Gemini key (`GEMINI_API_KEY`). Voice needs
+`ELEVENLABS_API_KEY`. Without keys, everything except Mentor/Lumber photo still works.
 
 ## Invariants (do not break)
+
 1. Numbers come only from pure modules in `src/lib/chair/*`, `lab.ts`, `assembly.ts`. 3D, 2D, UI and mentor all consume them.
 2. Component Lab 3D (`LabModel.tsx`) is generated from the exact `LabDesign` passed to `evaluateLab`.
 3. Mentor answers only from `src/lib/knowledge` + computed observations; never invent sources; no external links (Wikipedia/YouTube removed on purpose).
@@ -22,14 +26,17 @@ AI features need a Lovable AI Gateway key (`LOVABLE_API_KEY`) — automatic on L
 10. Never claim strength/safety/comfort guarantees; label all results as teaching estimates.
 
 ## How to extend
+
 - New chair typology: add `src/lib/chair/<name>/{params,geometry,parts,consequences}.ts`, a 3D model + canvas in `components/three`, extend `Typology`, store, controls, `stress.ts`, `shop.ts`, `joinery.ts`, `assembly.ts` OPS, knowledge entries, tests.
 - Better mentor: add knowledge entries; add observations; optionally implement `Retriever` with embeddings.
 - Cloud save: implement `StudioRepository` against a backend.
 
 ## Tests that exist
+
 `consequences.test.ts`, `japanese/consequences.test.ts`, `stress.test.ts`, `shop.test.ts`, `steps456.test.ts` (joinery, assembly, lab), `stock.test.ts`, `src/test/app-routing.test.tsx`.
 
 ## Known limits
+
 - No FEA; stress = relative moments vs original; wood idealized; lab statics are 2D approximations.
 - Lab 3D uses straight parts only (no carved seats, bent rails).
 - Anatomy walkthrough only for Kangaroo.
@@ -37,6 +44,7 @@ AI features need a Lovable AI Gateway key (`LOVABLE_API_KEY`) — automatic on L
 - Part thicknesses in cut lists are standard assumptions (e.g. 3.8 cm side frames, 4 cm legs).
 
 ## Open work (hackathon list)
+
 - Animated "sit & stress" test (load animation, joint shear / tipping).
 - Printable shop pack (1:1 drilling template PDF, cut sheet, STL/DXF export).
 - Guided judge tour (scripted 60 s walkthrough).

@@ -11,7 +11,7 @@ Read in this order:
 
 1. [FEATURES.md](./FEATURES.md) — every screen, button and behaviour, user-facing.
 2. [ARCHITECTURE.md](./ARCHITECTURE.md) — stack, folders, files, data flow, state, persistence.
-3. [AI_AND_APIS.md](./AI_AND_APIS.md) — how Gemini (Lovable AI Gateway), RAG, vision and ElevenLabs are used.
+3. [AI_AND_APIS.md](./AI_AND_APIS.md) — how the Gemini API, RAG, vision and ElevenLabs are used.
 4. [ENGINEERING_RULES.md](./ENGINEERING_RULES.md) — every formula, constant and threshold in the deterministic engine.
 5. [LLM_HANDOFF.md](./LLM_HANDOFF.md) — rules, invariants, how to run/test, known limits, open work.
 
