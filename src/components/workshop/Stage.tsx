@@ -75,16 +75,13 @@ export function Stage() {
       <div className="relative flex min-w-0 flex-1 items-center justify-center paper">
         <div className="max-w-md rounded-xl border hairline bg-card p-8 text-center shadow-sm">
           <div className="eyebrow">Anatomy walkthrough</div>
-          <h2 className="mt-2 text-2xl">This guided lesson follows the Kangaroo chair</h2>
+          <h2 className="mt-2 text-2xl">The guided tour is written for the Kangaroo chair</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            The anatomy walkthrough is written for the Kangaroo. The Japanese armchair works in the Parametric Studio and the Assembly order practice.
+            This chair works in “Change the chair” and “Assembly order”.
           </p>
           <div className="mt-5 flex justify-center gap-2">
-            <button onClick={() => w.setTypology("kangaroo")} className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">
-              Switch to the Kangaroo
-            </button>
-            <button onClick={() => w.setSection("design")} className="rounded-md border hairline px-4 py-2 text-sm">
-              Open the Parametric Studio
+            <button onClick={() => w.setSection("design")} className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">
+              Change the chair
             </button>
           </div>
         </div>
@@ -135,25 +132,11 @@ export function Stage() {
 
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-5">
         <div className="pointer-events-auto">
-          <div className="eyebrow">{isBuild ? "Assembly order" : isDesign ? "Change a chair" : "Learn a chair"}</div>
+          <div className="eyebrow">{isBuild ? "Assembly order" : isDesign ? "Change the chair" : "Learn the chair"}</div>
           <h2 className="mt-1 text-2xl">{t.name}</h2>
           <p className="mt-1 max-w-sm text-xs text-muted-foreground">{t.sub}</p>
         </div>
         <div className="pointer-events-auto flex flex-col items-end gap-2">
-          <div className="flex items-center gap-1 rounded-lg border hairline bg-card/90 p-1 backdrop-blur">
-            {(["kangaroo", "japanese"] as const).map((ty) => (
-              <button
-                key={ty}
-                onClick={() => w.setTypology(ty)}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-[11px] transition-colors",
-                  w.typology === ty ? "bg-teal text-accent-foreground" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {ty === "kangaroo" ? "Kangaroo" : "Japanese"}
-              </button>
-            ))}
-          </div>
           <div className="flex items-center gap-1 rounded-lg border hairline bg-card/90 p-1 backdrop-blur">
             {views.map((v) => (
               <ToolBtn key={v.id} label={`${v.label} view`} active={w.camera.preset === v.id} onClick={() => w.goView(v.id)}>
@@ -169,7 +152,7 @@ export function Stage() {
             <ToolBtn label="Explode: pull the chair apart to see every piece" active={exploded} onClick={() => w.setExploded(!w.exploded)}>
               <Layers className="h-3.5 w-3.5" strokeWidth={1.5} /> Explode
             </ToolBtn>
-            <ToolBtn label="Weak spots: grain direction and how hard each joint works" active={stressOn} onClick={() => { setStressOn(!stressOn); setStressPanel(true); }}>
+            <ToolBtn label="Weak spots: grain direction and how hard each joint works" active={stressOn} onClick={() => { if (!stressOn) w.mark("weak"); setStressOn(!stressOn); setStressPanel(true); }}>
               <Activity className="h-3.5 w-3.5" strokeWidth={1.5} /> Weak spots
             </ToolBtn>
             <ToolBtn label="Sizes: show key dimensions on the model" active={w.dims} onClick={() => w.setDims(!w.dims)}>

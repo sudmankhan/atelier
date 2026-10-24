@@ -8,6 +8,7 @@ import { labRearPivotZ } from "@/lib/statics";
 import { StaticsPanel } from "./StaticsPanel";
 import { BeamPanel } from "./BeamPanel";
 import { ProvenanceBadge } from "./ProvenanceBadge";
+import { useWorkshop } from "./store";
 
 const BASES: { id: Base; label: string }[] = [
   { id: "four", label: "4 straight legs" },
@@ -25,11 +26,12 @@ const tone: Record<Level, string> = { good: "border-teal", warn: "border-walnut"
 const txt: Record<Level, string> = { good: "text-teal", warn: "text-walnut", bad: "text-alert" };
 
 export function ComponentLab() {
+  const { mark } = useWorkshop();
   const [d, setD] = useState<LabDesign>(BLANK);
   const [tested, setTested] = useState(false);
   const [xray, setXray] = useState(false);
   const [panel, setPanel] = useState(true);
-  const set = <K extends keyof LabDesign>(k: K, v: LabDesign[K]) => { setD((x) => ({ ...x, [k]: v })); };
+  const set = <K extends keyof LabDesign>(k: K, v: LabDesign[K]) => { mark("pick"); setD((x) => ({ ...x, [k]: v })); };
   const [knee, setKnee] = useState<number | "">("");
   const results = evaluateLab(d, knee === "" ? {} : { poplitealHeight: knee });
   const tip = labTipping(d);
@@ -77,10 +79,10 @@ export function ComponentLab() {
             <input type="checkbox" checked={d.stretchers} onChange={(e) => set("stretchers", e.target.checked)} /> <span>Add stretchers <span className="text-muted-foreground">— bars between the legs that stop sideways wobble</span></span>
           </label>
           <div className="flex gap-2">
-            <button onClick={() => setTested(true)} className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">Test this chair</button>
+            <button onClick={() => { mark("test"); setTested(true); }} className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">Test this chair</button>
             <button onClick={() => { setD(BLANK); setTested(false); }} className="rounded-md border hairline px-4 py-2 text-sm">Clear bench</button>
           </div>
-          <details className="rounded-md border hairline p-2">
+          <details className="rounded-md border hairline p-2" onToggle={(e) => { if ((e.target as HTMLDetailsElement).open) mark("math"); }}>
             <summary className="cursor-pointer text-xs text-muted-foreground">Show the math — side view, tipping, leg bending, your knee height</summary>
             <div className="mt-3 space-y-4">
               <label className="block text-xs">
