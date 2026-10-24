@@ -6,6 +6,7 @@ import { computeConsequences, type Consequences, type UserMeasurements } from "@
 import { computeJapaneseConsequences, type JConsequences } from "@/lib/chair/japanese/consequences";
 import { localRepository, EMPTY_PROGRESS, type Progress, type SavedDesign } from "@/lib/storage/repository";
 import type { CameraPreset } from "@/lib/lessons";
+import { addTime, markMilestone, type ChairId } from "@/lib/storage/chairProgress";
 
 export type { Typology, AnyPartId };
 export type AnyParams = ChairParams | JapaneseParams;
@@ -20,6 +21,8 @@ export interface ChatMsg {
 }
 
 interface Store {
+  chair: ChairId;
+  mark: (milestone: string) => void;
   typology: Typology;
   setTypology: (t: Typology) => void;
   section: Section;
@@ -62,8 +65,16 @@ interface Store {
 const g = globalThis as unknown as { __workshopCtx?: React.Context<Store | null> };
 const Ctx = (g.__workshopCtx ??= createContext<Store | null>(null));
 
-export function WorkshopProvider({ initialSection, children }: { initialSection: Section; children: ReactNode }) {
-  const [typology, setTypologyState] = useState<Typology>("kangaroo");
+export function WorkshopProvider({ initialSection, chair = "kangaroo", children }: { initialSection: Section; chair?: ChairId; children: ReactNode }) {
+  const [typology, setTypologyState] = useState<Typology>(chair === "japanese" ? "japanese" : "kangaroo");
+  const mark = useCallback((m: string) => markMilestone(chair, m), [chair]);
+  // Time spent on this chair, counted while the tab is visible.
+  useEffect(() => {
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") addTime(chair, 10);
+    }, 10_000);
+    return () => clearInterval(t);
+  }, [chair]);
   const [section, setSection] = useState<Section>(initialSection);
   const [howTopic, setHowTopic] = useState<string | null>(null);
   const [selected, select] = useState<AnyPartId | null>(null);
@@ -81,6 +92,11 @@ export function WorkshopProvider({ initialSection, children }: { initialSection:
   const [pendingQuestion, setPending] = useState<string | null>(null);
   const loaded = useRef(false);
 
+  useEffect(() => {
+    if (initialSection === "study") mark("learn");
+    if (initialSection === "build") mark("assembly");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     const dk = localRepository.getDraft("kangaroo");
     const dj = localRepository.getDraft("japanese");
@@ -107,10 +123,11 @@ export function WorkshopProvider({ initialSection, children }: { initialSection:
 
   const setParam = useCallback(
     (k: string, v: number | string) => {
+      markMilestone(chair, "change");
       if (typology === "kangaroo") setKParams((p) => clampParams({ ...p, [k]: v }) as ChairParams);
       else setJParams((p) => clampJapanese({ ...p, [k]: v }) as JapaneseParams);
     },
-    [typology],
+    [typology, chair],
   );
   const updateProgress = useCallback((fn: (p: Progress) => Progress) => {
     setProgress((p) => {
@@ -126,12 +143,16 @@ export function WorkshopProvider({ initialSection, children }: { initialSection:
   );
 
   const value: Store = {
+    chair,
+    mark,
     typology,
     setTypology,
     section,
     setSection: (s) => {
       setSection(s);
       if (s === "design") setBenchTab("feedback");
+      if (s === "study") mark("learn");
+      if (s === "build") mark("assembly");
     },
     howTopic,
     openHow: (topic) => {
@@ -154,7 +175,10 @@ export function WorkshopProvider({ initialSection, children }: { initialSection:
     dims,
     setDims,
     benchTab,
-    setBenchTab,
+    setBenchTab: (t) => {
+      setBenchTab(t);
+      if (t === "shop") mark("shop");
+    },
     camera,
     goView: (preset) => setCamera((c) => ({ preset, n: c.n + 1 })),
     progress,

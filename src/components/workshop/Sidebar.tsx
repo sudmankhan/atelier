@@ -1,34 +1,38 @@
 import { Link } from "@tanstack/react-router";
-import { BookOpen, CircleHelp, Compass, FlaskConical, FolderOpen, Hammer, Ruler, ScanSearch, Sprout } from "lucide-react";
+import { ArrowLeft, BookOpen, CircleHelp, Compass, FlaskConical, FolderOpen, Hammer, Ruler, ScanSearch, Sprout } from "lucide-react";
+import type { ChairId } from "@/lib/storage/chairProgress";
 import { useWorkshop, type Section } from "./store";
 import { cn } from "@/lib/utils";
 
 // Main path for a first visit / 3-minute demo: learn → change → build → assemble.
-const MAIN: { id: Section; label: string; hint: string; icon: typeof Compass }[] = [
-  { id: "study", label: "Learn a chair", hint: "Guided tour of every part", icon: ScanSearch },
-  { id: "design", label: "Change a chair", hint: "Sliders → see what breaks", icon: Ruler },
-  { id: "lab", label: "Build your own", hint: "Pick parts, then test it", icon: FlaskConical },
-  { id: "build", label: "Assembly order", hint: "Put the build steps in order", icon: Hammer },
-];
+type Nav = { id: Section; label: string; hint: string; icon: typeof Compass };
+const LEARN: Nav = { id: "study", label: "Learn the chair", hint: "Guided tour of every part", icon: ScanSearch };
+const CHANGE: Nav = { id: "design", label: "Change the chair", hint: "Sliders → see what breaks", icon: Ruler };
+const ASSEMBLE: Nav = { id: "build", label: "Assembly order", hint: "Put the build steps in order", icon: Hammer };
+const LAB: Nav = { id: "lab", label: "Build your own", hint: "Pick parts, then test it", icon: FlaskConical };
+const MAIN: Record<ChairId, Nav[]> = { kangaroo: [LEARN, CHANGE, ASSEMBLE], japanese: [CHANGE, ASSEMBLE], lab: [LAB] };
+const NAME: Record<ChairId, string> = { kangaroo: "Kangaroo lounge chair", japanese: "Kuro spindle-back", lab: "Your own chair" };
 
 const MORE: { id: Section; label: string; icon: typeof Compass }[] = [
   { id: "how", label: "How the numbers work", icon: CircleHelp },
-  { id: "discover", label: "The two chairs", icon: Compass },
   { id: "projects", label: "Saved designs", icon: FolderOpen },
   { id: "library", label: "Reading library", icon: BookOpen },
   { id: "progress", label: "Your progress", icon: Sprout },
 ];
 
 export function Sidebar() {
-  const { section, setSection } = useWorkshop();
+  const { section, setSection, chair } = useWorkshop();
   return (
     <aside className="flex w-60 shrink-0 flex-col border-r hairline bg-sidebar">
-      <Link to="/" className="px-6 pt-7 pb-6">
-        <div className="font-serif text-xl tracking-tight">FORM <span className="italic text-walnut">&</span> GRAIN</div>
-        <div className="eyebrow mt-1">The Workshop</div>
-      </Link>
+      <div className="px-6 pt-7 pb-6">
+        <Link to="/" className="flex items-center gap-1.5 text-xs text-walnut hover:underline">
+          <ArrowLeft className="h-3.5 w-3.5" /> All furniture
+        </Link>
+        <div className="mt-4 font-serif text-xl tracking-tight">{NAME[chair]}</div>
+        <div className="eyebrow mt-1">Atelier · Chairs</div>
+      </div>
       <nav className="flex flex-col gap-0.5 px-3">
-        {MAIN.map((n) => (
+        {MAIN[chair].map((n) => (
           <button
             key={n.id}
             onClick={() => setSection(n.id)}
