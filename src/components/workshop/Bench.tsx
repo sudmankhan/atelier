@@ -20,6 +20,7 @@ import { ShopSheet } from "./ShopSheet";
 import { LumberStudio } from "./LumberStudio";
 import { JointInspector } from "./JointInspector";
 import { StaticsPanel } from "./StaticsPanel";
+import { EXAMPLE_LOADS, combineWeights, defaultComZ, leverArm, tippingStatics } from "@/lib/statics";
 import { useWorkshop, type AnyPartId, type BenchTab } from "./store";
 import { cn } from "@/lib/utils";
 
@@ -67,15 +68,13 @@ const J_MISALIGNED: Record<string, string> = {
   armJoints: "arm / post joints",
 };
 
-const TABS: { id: BenchTab; label: string }[] = [
-  { id: "inspect", label: "Inspect" },
-  { id: "geometry", label: "Geometry" },
-  { id: "feedback", label: "Feedback" },
-  { id: "shop", label: "Shop" },
-  { id: "lumber", label: "Lumber" },
-  { id: "joints", label: "Joints" },
-  { id: "tipping", label: "Tipping" },
-  { id: "ask", label: "Ask" },
+const TABS: { id: BenchTab; label: string; hint: string }[] = [
+  { id: "inspect", label: "Part", hint: "What the selected piece does and how it's made" },
+  { id: "feedback", label: "Changes", hint: "What your slider changes do to the chair, the sitter and the build" },
+  { id: "shop", label: "Shop", hint: "Cut list and saw / drill angles — printable" },
+  { id: "lumber", label: "Lumber", hint: "Fit the chair's parts onto the boards you own" },
+  { id: "joints", label: "Joints", hint: "Size how two pieces lock together" },
+  { id: "ask", label: "Ask", hint: "Ask the Master (AI) about what you're looking at" },
 ];
 
 export function Bench() {
@@ -97,6 +96,7 @@ export function Bench() {
             <button
               key={t.id}
               onClick={() => w.setBenchTab(t.id)}
+              title={t.hint}
               className={cn(
                 "-mb-px border-b-2 pb-2.5 text-xs transition-colors",
                 w.benchTab === t.id ? "border-teal text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
@@ -118,12 +118,10 @@ export function Bench() {
             className="absolute inset-0 overflow-y-auto"
           >
             {w.benchTab === "inspect" && <Inspect />}
-            {w.benchTab === "geometry" && <Geometry />}
-            {w.benchTab === "feedback" && <Feedback />}
+            {w.benchTab === "feedback" && <Changes />}
             {w.benchTab === "shop" && <ShopSheet />}
             {w.benchTab === "lumber" && <LumberStudio />}
             {w.benchTab === "joints" && <JointInspector />}
-            {w.benchTab === "tipping" && <Tipping />}
             {w.benchTab === "ask" && <Ask />}
           </motion.div>
         </AnimatePresence>
@@ -146,18 +144,43 @@ function PartChips({ parts }: { parts: AnyPartId[] }) {
   );
 }
 
-function Tipping() {
+/** Inputs for the static tipping check of the chair currently on the stage. */
+function useTipInputs() {
   const w = useWorkshop();
   const isK = w.typology === "kangaroo";
   const params = w.section === "design" ? w.params : isK ? BASELINE : J_BASELINE;
   if (isK) {
     const kp = params as ChairParams;
     const g = computeGeometry(kp);
-    return <div className="p-5"><StaticsPanel pivotZ={g.rearFoot.z} seatRearZ={g.seatRear.z} seatFrontZ={g.seatFront.z} seatHeight={kp.seatHeight} chair={kangarooMass(kp)} reclineDeg={g.backRecline} pushHeightCm={g.backTop.y} /></div>;
+    return { pivotZ: g.rearFoot.z, seatRearZ: g.seatRear.z, seatFrontZ: g.seatFront.z, seatHeight: kp.seatHeight, chair: kangarooMass(kp), reclineDeg: g.backRecline, pushHeightCm: g.backTop.y };
   }
   const jp = params as JapaneseParams;
   const g = computeJapanese(jp);
-  return <div className="p-5"><StaticsPanel pivotZ={g.rearFoot.z} seatRearZ={-jp.seatDepth / 2} seatFrontZ={jp.seatDepth / 2} seatHeight={jp.seatHeight} chair={japaneseMass(jp)} reclineDeg={POST_LEAN} pushHeightCm={jp.seatHeight + jp.backHeight} /></div>;
+  return { pivotZ: g.rearFoot.z, seatRearZ: -jp.seatDepth / 2, seatFrontZ: jp.seatDepth / 2, seatHeight: jp.seatHeight, chair: japaneseMass(jp), reclineDeg: POST_LEAN, pushHeightCm: jp.seatHeight + jp.backHeight };
+}
+
+/** One-line answer to "does it tip back?", using the same defaults as the full StaticsPanel. */
+function TipVerdict() {
+  const t = useTipInputs();
+  const both = combineWeights({ W: EXAMPLE_LOADS.W, z: defaultComZ(t.seatRearZ, t.seatFrontZ, undefined, t.reclineDeg) }, { W: t.chair.N, z: t.chair.comZ });
+  const r = tippingStatics({ W: both.W, d: leverArm(both.z, t.pivotZ), F: EXAMPLE_LOADS.F, h: t.pushHeightCm / 100 });
+  if (!r.ok) return null;
+  const good = r.status === "stays";
+  return (
+    <div className={cn("rounded-lg border-l-2 bg-background px-3 py-2.5", good ? "border-teal" : "border-alert")}>
+      <div className="text-sm">{good ? "Lean-back test: stays on its feet" : "Lean-back test: tips backward"}</div>
+      <div className="mt-0.5 text-xs text-muted-foreground">
+        {r.thresholdF === null
+          ? "The combined weight sits behind the rear feet — it tips with no push at all."
+          : `A ${EXAMPLE_LOADS.W / 10} kg sitter would need to push back with about ${Math.round(r.thresholdF)} N at the top of the back to tip it${good ? ` — more than the ${EXAMPLE_LOADS.F} N hard-lean example.` : `, less than the ${EXAMPLE_LOADS.F} N hard-lean example.`}`}
+      </div>
+    </div>
+  );
+}
+
+function TippingMath() {
+  const t = useTipInputs();
+  return <StaticsPanel {...t} />;
 }
 
 function Inspect() {
@@ -259,7 +282,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Geometry() {
+function GeometryTable() {
   const w = useWorkshop();
   const isK = w.typology === "kangaroo";
   const { current: g, baseline: b } = w.consequences;
@@ -301,13 +324,8 @@ function Geometry() {
         ];
       })();
   return (
-    <div className="p-5">
-      <h3 className="text-2xl">Side elevation</h3>
-      <p className="mt-1 text-xs text-muted-foreground">Solid: current design. Dashed blue: original. Computed from the same geometry as the 3D model.</p>
-      <div className="mt-3 rounded-lg border hairline bg-background grid-paper">
-        <SideProfile params={w.params} typology={w.typology} className="w-full" />
-      </div>
-      <table className="mt-4 w-full text-xs">
+    <div>
+      <table className="w-full text-xs">
         <thead>
           <tr className="text-left text-muted-foreground">
             <th className="py-1 font-normal">Measure</th>
@@ -364,56 +382,68 @@ function ObsGroup({ title, tag, items }: { title: string; tag: string; items: Ob
   );
 }
 
-function Feedback() {
+function Changes() {
   const w = useWorkshop();
   const c = w.consequences;
   const labels = w.typology === "kangaroo" ? K_MISALIGNED : J_MISALIGNED;
+  const none = c.changed.length === 0;
   return (
-    <div className="space-y-6 p-5">
+    <div className="space-y-5 p-5">
       <div>
-        <h3 className="text-2xl">Design Consequences</h3>
+        <h3 className="text-2xl">What your changes do</h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          Geometry is calculated exactly. Human-factors and craft notes are reviewed guidance — not safety ratings or comfort guarantees.
+          {none ? "Move a slider and this fills in — for the chair, the sitter and the build." : `${c.changed.length} setting(s) changed from the original.`}
         </p>
         {w.section !== "design" && (
-          <button onClick={() => w.setSection("design")} className="mt-3 text-xs text-teal hover:underline">
-            Open the Design Studio to change the chair →
+          <button onClick={() => w.setSection("design")} className="mt-2 text-xs text-teal hover:underline">
+            Open “Change a chair” to move the sliders →
           </button>
         )}
       </div>
+      <div className="rounded-lg border hairline bg-background grid-paper">
+        <SideProfile params={w.params} typology={w.typology} className="w-full" />
+      </div>
+      <p className="-mt-3 text-[11px] text-muted-foreground">Side view. Solid = your design, dashed blue = the original.</p>
+      <TipVerdict />
       {c.misaligned.length > 0 && (
         <div className="rounded-lg bg-alert/10 px-3 py-2.5 text-xs text-foreground">
-          <span className="font-semibold text-alert">Connections out of alignment: </span>
-          {c.misaligned.map((m) => labels[m] ?? m).join(", ")}
-          . Their angles differ from the original beyond tolerance, so joints laid out for the original would not seat.
+          <span className="font-semibold text-alert">Joints no longer line up: </span>
+          {c.misaligned.map((m) => labels[m] ?? m).join(", ")}. Joints cut for the original angle would not fit — lay them out again.
         </div>
       )}
-      <ObsGroup title="Geometry" tag="Measured" items={c.geometry} />
-      <ObsGroup title="Human Factors" tag="Guidance" items={c.human} />
-      <ObsGroup title="Craftsmanship" tag="Guidance" items={c.craft} />
-      <div className="rounded-lg bg-secondary/60 p-3">
-        <label className="text-xs">
-          Your seated knee height (popliteal), optional
-          <div className="mt-1.5 flex items-center gap-2">
-            <input
-              type="number"
-              min={30}
-              max={60}
-              value={w.user.poplitealHeight ?? ""}
-              onChange={(e) => w.setUser({ poplitealHeight: e.target.value ? Number(e.target.value) : undefined })}
-              className="w-20 rounded-md border hairline bg-card px-2 py-1 font-mono text-xs outline-none focus:border-teal"
-            />
-            <span className="text-muted-foreground">cm — floor to the back of the knee, seated</span>
-          </div>
-        </label>
-      </div>
+      <ObsGroup title="The chair" tag="Measured" items={c.geometry} />
+      <ObsGroup title="The sitter" tag="Guidance" items={c.human} />
+      <ObsGroup title="The build" tag="Guidance" items={c.craft} />
       <button
-        disabled={c.changed.length === 0}
+        disabled={none}
         onClick={() => w.askMasterAbout("Explain the consequences of my design changes, and what I should consider as a maker.")}
         className="w-full rounded-md bg-primary px-4 py-2.5 text-sm text-primary-foreground disabled:opacity-40"
       >
         Have the Master explain these changes
       </button>
+      <details className="rounded-md border hairline p-3">
+        <summary className="cursor-pointer text-xs text-muted-foreground">Show the math — all measurements, tipping calculation, your knee height</summary>
+        <div className="mt-3 space-y-5">
+          <div className="rounded-lg bg-secondary/60 p-3">
+            <label className="text-xs">
+              Your seated knee height (optional)
+              <div className="mt-1.5 flex items-center gap-2">
+                <input
+                  type="number"
+                  min={30}
+                  max={60}
+                  value={w.user.poplitealHeight ?? ""}
+                  onChange={(e) => w.setUser({ poplitealHeight: e.target.value ? Number(e.target.value) : undefined })}
+                  className="w-20 rounded-md border hairline bg-card px-2 py-1 font-mono text-xs outline-none focus:border-teal"
+                />
+                <span className="text-muted-foreground">cm, floor to back of knee — checks the seat height against your legs</span>
+              </div>
+            </label>
+          </div>
+          <GeometryTable />
+          <TippingMath />
+        </div>
+      </details>
     </div>
   );
 }

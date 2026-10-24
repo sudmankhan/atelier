@@ -55,9 +55,9 @@ export function StressOverlay({ report }: { report: StressReport }) {
             <sphereGeometry args={[p.level === "ok" ? 1.6 : 2.4, 16, 12]} />
             <meshBasicMaterial color={COL[p.level]} depthTest={false} transparent opacity={0.9} />
           </mesh>
-          <Html position={[6, 3, 0]} distanceFactor={1.2} zIndexRange={[5, 0]} style={{ pointerEvents: "none" }}>
+          <Html position={[3, 2.5, 0]} distanceFactor={1.2} zIndexRange={[5, 0]} style={{ pointerEvents: "none" }}>
             <div className="whitespace-nowrap rounded border hairline bg-card/95 px-1.5 py-0.5 font-mono text-[10px] shadow-sm">
-              <span style={{ color: COL[p.level] }}>●</span> {p.stressMPa} MPa · {Math.round(p.utilisation * 100)}% of ref
+              <span style={{ color: COL[p.level] }}>●</span> {Math.round(p.utilisation * 100)}%
             </div>
           </Html>
         </group>

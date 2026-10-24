@@ -24,7 +24,7 @@ function ToolBtn({ active, onClick, children, label }: { active?: boolean; onCli
       aria-label={label}
       aria-pressed={active}
       className={cn(
-        "flex h-9 items-center gap-2 rounded-md px-3 text-xs transition-colors",
+        "flex h-9 items-center gap-2 whitespace-nowrap rounded-md px-3 text-xs transition-colors",
         active ? "bg-teal text-accent-foreground" : "text-foreground hover:bg-secondary",
       )}
     >
@@ -32,6 +32,9 @@ function ToolBtn({ active, onClick, children, label }: { active?: boolean; onCli
     </button>
   );
 }
+
+const LEVEL_TXT = { ok: "text-teal", watch: "text-walnut", high: "text-alert" } as const;
+const LEVEL_WORD = { ok: "Plenty of margin", watch: "Working hard — watch this joint", high: "Over the cautious limit — rethink it" } as const;
 
 const TITLES = {
   kangaroo: { name: "Kangaroo-inspired lounge chair", sub: "Chandigarh modernism · teak & cane · educational reconstruction" },
@@ -132,9 +135,9 @@ export function Stage() {
 
       <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-5">
         <div className="pointer-events-auto">
-          <div className="eyebrow">{isBuild ? "Assembly order" : isDesign ? "Parametric Studio" : "Anatomy"}</div>
+          <div className="eyebrow">{isBuild ? "Assembly order" : isDesign ? "Change a chair" : "Learn a chair"}</div>
           <h2 className="mt-1 text-2xl">{t.name}</h2>
-          <p className="mt-1 max-w-sm text-xs text-muted-foreground">{t.sub} — not an exact manufacturing reproduction.</p>
+          <p className="mt-1 max-w-sm text-xs text-muted-foreground">{t.sub}</p>
         </div>
         <div className="pointer-events-auto flex flex-col items-end gap-2">
           <div className="flex items-center gap-1 rounded-lg border hairline bg-card/90 p-1 backdrop-blur">
@@ -163,29 +166,29 @@ export function Stage() {
             </ToolBtn>
           </div>
           <div className="flex items-center gap-1 rounded-lg border hairline bg-card/90 p-1 backdrop-blur">
-            <ToolBtn label="Exploded view" active={exploded} onClick={() => w.setExploded(!w.exploded)}>
+            <ToolBtn label="Explode: pull the chair apart to see every piece" active={exploded} onClick={() => w.setExploded(!w.exploded)}>
               <Layers className="h-3.5 w-3.5" strokeWidth={1.5} /> Explode
             </ToolBtn>
-            <ToolBtn label="Dimensions" active={w.dims} onClick={() => w.setDims(!w.dims)}>
-              <Ruler className="h-3.5 w-3.5" strokeWidth={1.5} /> Dimensions
+            <ToolBtn label="Weak spots: grain direction and how hard each joint works" active={stressOn} onClick={() => { setStressOn(!stressOn); setStressPanel(true); }}>
+              <Activity className="h-3.5 w-3.5" strokeWidth={1.5} /> Weak spots
             </ToolBtn>
-            <ToolBtn label="Grain and joint stress" active={stressOn} onClick={() => { setStressOn(!stressOn); setStressPanel(true); }}>
-              <Activity className="h-3.5 w-3.5" strokeWidth={1.5} /> Grain & stress
-            </ToolBtn>
-            <ToolBtn label="Focus: hide all panels" active={focus} onClick={() => setFocus(!focus)}>
-              <Focus className="h-3.5 w-3.5" strokeWidth={1.5} /> Focus
+            <ToolBtn label="Sizes: show key dimensions on the model" active={w.dims} onClick={() => w.setDims(!w.dims)}>
+              <Ruler className="h-3.5 w-3.5" strokeWidth={1.5} /> Sizes
             </ToolBtn>
             {isDesign && (
-              <ToolBtn label="Compare with original" active={w.compare} onClick={() => w.setCompare(!w.compare)}>
-                <GitCompare className="h-3.5 w-3.5" strokeWidth={1.5} /> Original
+              <ToolBtn label="Compare: blue outline of the original chair" active={w.compare} onClick={() => w.setCompare(!w.compare)}>
+                <GitCompare className="h-3.5 w-3.5" strokeWidth={1.5} /> Compare
               </ToolBtn>
             )}
+            <ToolBtn label="Focus: hide all panels" active={focus} onClick={() => setFocus(!focus)}>
+              <Focus className="h-3.5 w-3.5" strokeWidth={1.5} />
+            </ToolBtn>
           </div>
         </div>
       </div>
 
       <div className="pointer-events-none absolute bottom-5 left-5 flex items-center gap-2 text-[11px] text-muted-foreground">
-        <Move3d className="h-3.5 w-3.5" strokeWidth={1.5} /> Drag to orbit · scroll to zoom · right-drag to pan · click a part
+        <Move3d className="h-3.5 w-3.5" strokeWidth={1.5} /> Drag to turn · scroll to zoom · click a part to learn about it
         {isDesign && w.compare && (
           <span className="ml-3 flex items-center gap-1.5 text-measure">
             <Box className="h-3.5 w-3.5" strokeWidth={1.5} /> Blue outline = original
@@ -199,36 +202,53 @@ export function Stage() {
       </div>
 
       {stress && !focus && !stressPanel && (
-        <button onClick={() => setStressPanel(true)} className="absolute right-5 bottom-12 z-20 rounded-full border hairline bg-card/95 px-3 py-2 text-xs shadow-sm">Show stress notes</button>
+        <button onClick={() => setStressPanel(true)} className="absolute right-5 bottom-12 z-20 rounded-full border hairline bg-card/95 px-3 py-2 text-xs shadow-sm">Show weak spots</button>
       )}
       {stress && !focus && stressPanel && (
-        <div className="absolute right-5 bottom-12 z-20 w-64 max-h-[45%] overflow-y-auto rounded-lg border hairline bg-card/95 p-4 text-xs shadow-sm backdrop-blur">
-          <div className="flex items-center justify-between"><div className="flex items-center gap-2"><div className="eyebrow">Grain & joint stress</div><ProvenanceBadge kind="assumption" topic="stress" /></div><button onClick={() => setStressPanel(false)} aria-label="Minimize stress notes"><Minimize2 className="h-3 w-3" /></button></div>
-          {exploded && <p className="mt-2 text-alert">Close the exploded view to see markers on the chair.</p>}
-          <ul className="mt-3 space-y-3">
+        <div className="absolute right-5 bottom-12 z-20 w-72 max-h-[55%] overflow-y-auto rounded-lg border hairline bg-card/95 p-4 text-xs shadow-sm backdrop-blur">
+          <div className="flex items-center justify-between"><div className="flex items-center gap-2"><div className="eyebrow">Weak spots</div><ProvenanceBadge kind="assumption" topic="stress" /></div><button onClick={() => setStressPanel(false)} aria-label="Minimize weak spots"><Minimize2 className="h-3 w-3" /></button></div>
+          {exploded && <p className="mt-2 text-alert">Close the exploded view to see the dots on the chair.</p>}
+          <p className="mt-2 text-[11px] text-muted-foreground">Dots = joints. The % is how much of a cautious strength limit each joint uses when someone sits and leans back hard.</p>
+          <ul className="mt-3 space-y-2.5">
             {stress.pins.map((p) => (
-              <li key={p.id}>
-                <div className="flex justify-between gap-2 font-medium">
-                  <span>{p.label}</span>
-                  <span className={cn("font-mono", p.level === "high" ? "text-alert" : p.level === "watch" ? "text-walnut" : "text-teal")}>
-                    {Math.round(p.utilisation * 100)}% of ref
-                  </span>
+              <li key={p.id} className={cn("rounded-md border-l-2 bg-background px-2.5 py-2", p.level === "high" ? "border-alert" : p.level === "watch" ? "border-walnut" : "border-teal")}>
+                <div className="flex justify-between gap-2">
+                  <span className="font-medium">{p.label}</span>
+                  <span className={cn("font-mono", LEVEL_TXT[p.level])}>{Math.round(p.utilisation * 100)}%</span>
                 </div>
-                <p className="mt-0.5 font-mono text-[10px]">
-                  {p.moment} N·m on {p.section} → {p.stressMPa} MPa (ref {p.refMPa} MPa){p.ratio !== 1 && ` · moment ${p.ratio > 1 ? "+" : ""}${Math.round((p.ratio - 1) * 100)}% vs original`}
-                </p>
+                <div className={cn("text-[11px]", LEVEL_TXT[p.level])}>
+                  {LEVEL_WORD[p.level]}
+                  {p.ratio !== 1 && <span className="text-muted-foreground"> · {p.ratio > 1 ? "+" : ""}{Math.round((p.ratio - 1) * 100)}% vs original</span>}
+                </div>
                 <p className="mt-0.5 text-muted-foreground">{p.why}</p>
-                <p className="mt-0.5 text-[10px] text-measure">{p.how}</p>
               </li>
             ))}
           </ul>
-          <div className="mt-4 border-t hairline pt-3 space-y-2">
-            {stress.grain.filter((g) => g.runoutDeg > 0 || g.level !== "ok" || g.id === "seat").map((g) => (
-              <p key={g.id}><span className={cn("font-medium", g.level === "high" && "text-alert")}>{g.label}:</span> <span className="text-muted-foreground">{g.note}</span></p>
-            ))}
-          </div>
+          {stress.grain.some((g) => g.level !== "ok" || g.id === "seat") && (
+            <div className="mt-3 space-y-1.5 border-t hairline pt-3">
+              <div className="eyebrow">Grain</div>
+              {stress.grain.filter((g) => g.level !== "ok" || g.id === "seat").map((g) => (
+                <p key={g.id}><span className={cn("font-medium", g.level === "high" && "text-alert")}>{g.label}:</span> <span className="text-muted-foreground">{g.note}</span></p>
+              ))}
+            </div>
+          )}
           {stress.wood.proxy && <p className="mt-3 text-[10px] text-walnut">{stress.wood.note}</p>}
-          <p className="mt-3 text-[10px] text-measure">Arrows = grain direction. Dots = joints: green under half the reference stress, amber up to it, red above it. The reference is clear-wood strength (USDA Wood Handbook) taken to its 5th percentile and divided by 2.1 — an educational level, not a safe-load rating. {stress.assumptions}</p>
+          <details className="mt-3 border-t hairline pt-2">
+            <summary className="cursor-pointer text-[11px] text-muted-foreground">Show the math</summary>
+            <ul className="mt-2 space-y-2">
+              {stress.pins.map((p) => (
+                <li key={p.id}>
+                  <div className="font-medium">{p.label}</div>
+                  <p className="font-mono text-[10px]">{p.moment} N·m on {p.section} → {p.stressMPa} MPa (limit {p.refMPa} MPa)</p>
+                  <p className="text-[10px] text-measure">{p.how}</p>
+                </li>
+              ))}
+              {stress.grain.filter((g) => g.level === "ok" && g.id !== "seat").map((g) => (
+                <li key={g.id} className="text-[10px] text-muted-foreground">{g.label}: {g.note}</li>
+              ))}
+            </ul>
+            <p className="mt-2 text-[10px] text-measure">The limit is USDA clear-wood bending strength taken down to its weakest 5% and divided by 2.1 — a cautious teaching level, not a certified safe load. Green under 50%, amber 50–100%, red over 100%. {stress.assumptions}</p>
+          </details>
         </div>
       )}
 

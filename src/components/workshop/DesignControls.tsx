@@ -4,53 +4,8 @@ import { toast } from "sonner";
 import { Slider } from "@/components/ui/slider";
 import { BASELINE, PARAM_SPECS, WOODS, type WoodId } from "@/lib/chair/params";
 import { J_BASELINE, J_FINISHES, J_PARAM_SPECS, type JFinish } from "@/lib/chair/japanese/params";
-import { computeGeometry } from "@/lib/chair/geometry";
-import { computeJapanese } from "@/lib/chair/japanese/geometry";
 import { useWorkshop } from "./store";
 import { cn } from "@/lib/utils";
-
-/** Live cut list: the numbers a maker would take to the bench, from the same geometry as the model. */
-function CutList() {
-  const w = useWorkshop();
-  const rows: [string, string][] =
-    w.typology === "kangaroo"
-      ? (() => {
-          const p = w.params as typeof BASELINE;
-          const g = computeGeometry(p);
-          return [
-            ["Side frames ×2", `front leg ${g.frontLegLength.toFixed(1)} cm · back post 60 cm · rear support ${g.rearLegLength.toFixed(1)} cm`],
-            ["Rails ×3", `${g.railLength.toFixed(1)} cm shoulder to shoulder`],
-            ["Seat frame", `${(p.seatWidth - 0.4).toFixed(1)} × ${(p.seatDepth - 2).toFixed(1)} cm`],
-            ["Backrest frame", `${(p.seatWidth - 0.4).toFixed(1)} × ${g.backrestLength.toFixed(1)} cm`],
-            ["Rear joint angle", `${g.rearJointAngle.toFixed(1)}° · front joint ${g.frontJointAngle.toFixed(1)}°`],
-          ];
-        })()
-      : (() => {
-          const p = w.params as typeof J_BASELINE;
-          const g = computeJapanese(p);
-          return [
-            ["Legs ×4", `${g.legLength.toFixed(1)} cm · splayed ${p.legSplay.toFixed(1)}° both planes`],
-            ["Seat slab ×1", `${p.seatWidth.toFixed(1)} × ${p.seatDepth.toFixed(1)} × 3.5 cm`],
-            ["Back posts ×2", `${p.backHeight.toFixed(1)} cm · leaning 6°`],
-            [`Spindles ×${p.spindles}`, `≈${g.spindleLength.toFixed(1)} cm at ${g.spindleSpacing.toFixed(1)} cm centres`],
-            ["Crest rail ×1", `${p.seatWidth.toFixed(1)} cm span, bowed 4 cm`],
-            ["Arms ×2", `slope ${g.armSlope.toFixed(1)}° front to back`],
-          ];
-        })();
-  return (
-    <div>
-      <div className="eyebrow">Cut list · live</div>
-      <dl className="mt-2 divide-y hairline rounded-lg bg-secondary/50 px-3">
-        {rows.map(([l, v]) => (
-          <div key={l} className="py-1.5">
-            <dt className="text-[11px]">{l}</dt>
-            <dd className="font-mono text-[10px] text-muted-foreground">{v}</dd>
-          </div>
-        ))}
-      </dl>
-    </div>
-  );
-}
 
 export function DesignControls() {
   const w = useWorkshop();
@@ -62,10 +17,7 @@ export function DesignControls() {
   return (
     <div className="flex h-full flex-col overflow-hidden rounded-xl border hairline bg-card/95 shadow-sm backdrop-blur">
       <div className="flex items-center justify-between border-b hairline px-4 py-3">
-        <div>
-          <div className="eyebrow">Parametric lab</div>
-          <div className="font-serif text-lg">Shape the chair</div>
-        </div>
+        <div className="font-serif text-lg">Shape the chair</div>
         <button
           onClick={() => {
             w.resetParams();
@@ -73,7 +25,7 @@ export function DesignControls() {
           }}
           className="flex items-center gap-1.5 rounded-md border hairline px-2.5 py-1.5 text-[10px] font-semibold tracking-[0.14em] uppercase hover:bg-secondary"
         >
-          <RotateCcw className="h-3 w-3" /> Reset to original
+          <RotateCcw className="h-3 w-3" /> Reset
         </button>
       </div>
       <div className="flex-1 space-y-5 overflow-y-auto px-4 py-4">
@@ -148,7 +100,9 @@ export function DesignControls() {
             <div className="mt-1 text-[11px] text-muted-foreground">{J_FINISHES[(w.params as typeof J_BASELINE).finish].note}</div>
           </div>
         )}
-        <CutList />
+        <button onClick={() => w.setBenchTab("shop")} className="w-full rounded-md border hairline px-3 py-2 text-left text-xs hover:bg-secondary">
+          Full cut list and saw angles → <span className="text-teal">Shop tab</span>
+        </button>
       </div>
       <form
         className="flex gap-2 border-t hairline p-3"
