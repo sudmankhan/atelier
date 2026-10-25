@@ -17,6 +17,8 @@ import { ProvenanceBadge } from "./ProvenanceBadge";
 import { useWorkshop } from "./store";
 import { ARModal } from "./ARModal";
 import { makeChairARLink } from "@/lib/furniture/chairARLink";
+import { BriefNote, DescribeBox } from "./DescribeBox";
+import type { Brief } from "@/lib/brief";
 
 const BASES: { id: Base; label: string }[] = [
   { id: "four", label: "4 straight legs" },
@@ -42,6 +44,14 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
   const set = <K extends keyof LabDesign>(k: K, v: LabDesign[K]) => { mark("pick"); setD((x) => ({ ...x, [k]: v })); };
   const [knee, setKnee] = useState<number | "">("");
   const [setting, setSetting] = useState<Setting>("indoor");
+  const [brief, setBrief] = useState<{ brief: Brief; source: "ai" | "keywords"; note?: string } | null>(null);
+  const applyBrief = (b: Brief, source: "ai" | "keywords", note?: string) => {
+    mark("pick");
+    setD(b.design);
+    setSetting(b.setting);
+    setBrief({ brief: b, source, note });
+    setTested(true);
+  };
   const results = evaluateLab(d, knee === "" ? { setting } : { poplitealHeight: knee, setting });
   const tip = labTipping(d);
   const tips = tested && results.some((r) => r.area === "Stability" && r.level === "bad");
@@ -74,6 +84,9 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
 
       {panel && (
         <div className="absolute z-10 left-3 top-40 bottom-3 w-[min(20rem,calc(100vw-1.5rem))] space-y-4 overflow-y-auto rounded-xl border hairline bg-card/95 p-4 shadow-sm backdrop-blur sm:left-5 sm:top-24 sm:bottom-5">
+          <DescribeBox current={d} setting={setting} onDesign={applyBrief} />
+          {brief && <BriefNote {...brief} onClose={() => setBrief(null)} />}
+          <div className="eyebrow pt-1">Or pick the parts yourself</div>
           <Pick title="Base" hint="What the chair stands on." opts={BASES} v={d.base} on={(v) => set("base", v)} />
           <Pick title="Back" hint="What you lean on. No back = a stool." opts={BACKS} v={d.back} on={(v) => set("back", v)} />
           <Pick title="Joints" hint="How the legs lock into the seat. Mortise & tenon is strongest, screws weakest." opts={Object.entries(JOINT_TYPES).map(([id, j]) => ({ id: id as LabDesign["joint"], label: j.name }))} v={d.joint} on={(v) => set("joint", v)} />
@@ -96,7 +109,7 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
             <button onClick={() => { mark("test"); setTested(true); }} className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">Test this chair</button>
             <button onClick={() => { setD(BLANK); setTested(false); }} className="rounded-md border hairline px-4 py-2 text-sm">Clear bench</button>
           </div>
-          <SaveDesign d={d} />
+          <SaveDesign key={brief?.brief.name ?? "mine"} d={d} suggested={brief?.brief.name} />
           <details className="rounded-md border hairline p-2" onToggle={(e) => { if ((e.target as HTMLDetailsElement).open) mark("math"); }}>
             <summary className="cursor-pointer text-xs text-muted-foreground">Show the math — side view, tipping, leg bending, your knee height</summary>
             <div className="mt-3 space-y-4">
@@ -200,9 +213,9 @@ function SideView({ d }: { d: LabDesign }) {
 }
 
 /** Save the bench design as a furniture data file: it then appears on the home screen as its own chair. */
-function SaveDesign({ d }: { d: LabDesign }) {
+function SaveDesign({ d, suggested }: { d: LabDesign; suggested?: string }) {
   const navigate = useNavigate();
-  const [name, setName] = useState("My chair");
+  const [name, setName] = useState(suggested ?? "My chair");
   const [saved, setSaved] = useState<{ id: string; key: string } | null>(null);
   const key = JSON.stringify(d) + name;
   const fresh = saved?.key === key;
