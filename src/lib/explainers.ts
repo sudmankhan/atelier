@@ -2,6 +2,7 @@
 // how it helps, and what it cannot tell you. Rendered in-app ("How it works") and mirrored in docs/PRODUCT_GUIDE.md.
 import { DEFAULT_LOADS } from "./chair/loads";
 import { DEFAULT_DELTA_MC } from "./chair/movement";
+import { DECAY_SOURCE, DELTA_MC } from "./weather";
 import { DURATION_SAFETY_FACTOR, HANDBOOK, MOR_COV, Z_5PCT, referenceStressMPa, woodValue } from "./chair/woodProperties";
 import { HAT_COM_FRACTION, HAT_MASS_FRACTION, HIP_TO_SHOULDER_CM } from "./statics";
 
@@ -163,6 +164,25 @@ export const EXPLAINERS: Explainer[] = [
     ],
     helps: "Lets you discover why chairs look the way they do: try screws in pine without stretchers, then add stretchers and switch to mortise & tenon.",
     limits: "Simplified parts; joints are tested for racking only.",
+  },
+  {
+    id: "weather",
+    title: "Indoors or outdoors (weather)",
+    where: "Build your own and file chairs → Where will it live?",
+    provenance: ["rule", "assumption"],
+    what: "Pick where the chair will live. Outdoors, wood gets wet, rots, swells and shrinks far more, and glue, screws and finish wear out. The checks say what will fail first and how to prevent it.",
+    physics: [
+      "Rot: each wood's heartwood decay-resistance group from the USDA Wood Handbook. Sapwood of every species rots.",
+      "Swelling: the same Wood Handbook movement equation as the panel check (Eq. 13–2), with a bigger moisture swing outside.",
+      "Glue, screws, feet and finish: shop rules of thumb.",
+    ],
+    values: [
+      { name: "Decay resistance", value: "white oak, walnut: resistant · pine: moderate · ash: slight/none", why: "Which woods survive outside.", source: DECAY_SOURCE },
+      { name: "Moisture swing indoors", value: `${DELTA_MC.indoor} points`, why: "Heated homes stay at about 6–10% MC.", source: `${HANDBOOK} Table 13–2` },
+      { name: "Moisture swing covered / outdoors", value: `${DELTA_MC.covered} / ${DELTA_MC.outdoor} points`, why: "Damp winters to dry summers. A teaching assumption, not a Handbook value.", source: "Assumption" },
+    ],
+    helps: "Stops the classic mistake: a beautiful ash or pine chair left outside that's rotten in a few seasons.",
+    limits: "No lifespan in years: that depends on climate, care and finish, and no honest source can promise a number. Covered vs. open is a simple two-step model of real weather.",
   },
   {
     id: "beam",

@@ -188,6 +188,30 @@ It is a teaching tool. Nothing in it certifies that a chair is safe.
 
 **What it can't tell you.** Simplified parts; joints are tested for racking only.
 
+### Indoors or outdoors (weather)
+
+*Where:* Build your own and file chairs → Where will it live?. *Badges:* Rule of thumb, Calculated from assumption.
+
+**What it is.** Pick where the chair will live. Outdoors, wood gets wet, rots, swells and shrinks far more, and glue, screws and finish wear out. The checks say what will fail first and how to prevent it.
+
+**The physics.**
+
+- Rot: each wood's heartwood decay-resistance group from the USDA Wood Handbook. Sapwood of every species rots.
+- Swelling: the same Wood Handbook movement equation as the panel check (Eq. 13–2), with a bigger moisture swing outside.
+- Glue, screws, feet and finish: shop rules of thumb.
+
+**The numbers and why they're there.**
+
+| Value | Number | Why it's needed | Source |
+|---|---|---|---|
+| Decay resistance | white oak, walnut: resistant · pine: moderate · ash: slight/none | Which woods survive outside. | USDA Wood Handbook, Ch. 14 |
+| Moisture swing indoors | 4 points | Heated homes stay at about 6–10% MC. | USDA FPL-GTR-282 (2021), Wood Handbook Table 13–2 |
+| Moisture swing covered / outdoors | 8 / 12 points | Damp winters to dry summers. A teaching assumption, not a Handbook value. | Assumption |
+
+**How it helps.** Stops the classic mistake: a beautiful ash or pine chair left outside that's rotten in a few seasons.
+
+**What it can't tell you.** No lifespan in years: that depends on climate, care and finish, and no honest source can promise a number. Covered vs. open is a simple two-step model of real weather.
+
 ### Bending analysis (straight member)
 
 *Where:* Component Lab → Bending analysis. *Badges:* Calculated from assumption, Calculated.
