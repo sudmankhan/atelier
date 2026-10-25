@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, BookOpen, CircleHelp, Compass, FlaskConical, FolderOpen, Hammer, Ruler, ScanSearch, Sprout } from "lucide-react";
+import { ArrowLeft, BookOpen, CircleHelp, Compass, FlaskConical, FolderOpen, Hammer, Ruler, ScanSearch, Scissors, Sprout } from "lucide-react";
 import type { ChairId } from "@/lib/storage/chairProgress";
 import { useWorkshop, type Section } from "./store";
 import { cn } from "@/lib/utils";
@@ -9,8 +9,9 @@ type Nav = { id: Section; label: string; hint: string; icon: typeof Compass };
 const LEARN: Nav = { id: "study", label: "Learn the chair", hint: "Guided tour of every part", icon: ScanSearch };
 const CHANGE: Nav = { id: "design", label: "Change the chair", hint: "Sliders → see what breaks", icon: Ruler };
 const ASSEMBLE: Nav = { id: "build", label: "Assembly order", hint: "Put the build steps in order", icon: Hammer };
+const TEMPLATES: Nav = { id: "templates", label: "Templates", hint: "Real-size shapes to trace", icon: Scissors };
 const LAB: Nav = { id: "lab", label: "Build your own", hint: "Pick parts, then test it", icon: FlaskConical };
-const MAIN: Record<ChairId, Nav[]> = { kangaroo: [LEARN, CHANGE, ASSEMBLE], japanese: [CHANGE, ASSEMBLE], lab: [LAB] };
+const MAIN: Record<ChairId, Nav[]> = { kangaroo: [LEARN, CHANGE, ASSEMBLE, TEMPLATES], japanese: [CHANGE, ASSEMBLE, TEMPLATES], lab: [LAB] };
 const NAME: Record<ChairId, string> = { kangaroo: "Kangaroo lounge chair", japanese: "Kuro spindle-back", lab: "Your own chair" };
 
 const MORE: { id: Section; label: string; icon: typeof Compass }[] = [
