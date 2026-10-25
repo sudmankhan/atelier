@@ -311,7 +311,9 @@ export function Library() {
             <div>
               <div className="text-sm">{e.principle}</div>
               <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{e.explanation}</p>
-              <div className="mt-2 text-[11px] text-muted-foreground">{e.sourceTitle}</div>
+              <div className="mt-2 text-[11px] text-muted-foreground">
+                {e.sourceUrl ? <a href={e.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline decoration-current/40 underline-offset-2 hover:text-walnut">{e.sourceTitle}<span className="sr-only"> (opens in a new tab)</span></a> : e.sourceTitle}
+              </div>
             </div>
           </article>
         ))}
