@@ -52,6 +52,9 @@ export function ShopSheet() {
       >
         <Printer className="h-4 w-4" /> Print shop sheet
       </button>
+      <button onClick={() => w.setSection("templates")} className="-mt-3 w-full rounded-md border hairline px-3 py-2 text-left text-xs hover:bg-secondary">
+        Real-size templates to trace onto wood → <span className="text-teal">Templates</span>
+      </button>
       <div>
         <div className="flex items-center justify-between gap-2"><div className="eyebrow">Cut list · cm (L × W × T)</div><ProvenanceBadge kind="calculated" topic="shop" /></div>
         <p className="mt-1 text-muted-foreground">
