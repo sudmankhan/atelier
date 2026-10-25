@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowRight, Check, FileJson, Maximize2, Minimize2, Scan, ScanEye, ShieldCheck, Wrench, X } from "lucide-react";
+import { ArrowRight, Check, FileJson, Hammer, Maximize2, Minimize2, Scan, ScanEye, ShieldCheck, Wrench, X } from "lucide-react";
 import { labToSpec } from "@/lib/furniture/fromLab";
 import { saveDesign } from "@/lib/furniture/saved";
 import { SETTINGS, type Setting } from "@/lib/weather";
@@ -20,6 +20,7 @@ import { makeChairARLink } from "@/lib/furniture/chairARLink";
 import { BriefNote, DescribeBox } from "./DescribeBox";
 import { FixOptions } from "./FixOptions";
 import { DurabilityCard } from "./DurabilityCard";
+import { BuildKit } from "./BuildKit";
 import type { MathTopic } from "@/lib/durability";
 import { findFixes, type Fix, type Lockable } from "@/lib/compromise";
 import type { Brief } from "@/lib/brief";
@@ -61,6 +62,7 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
   const [locked, setLocked] = useState<Lockable[]>([]);
   const [fixOpen, setFixOpen] = useState(false);
   const [durOpen, setDurOpen] = useState(false);
+  const [kitOpen, setKitOpen] = useState(false);
   const [mathOpen, setMathOpen] = useState(false);
   const seeMath = (t: MathTopic) => {
     setDurOpen(false);
@@ -88,6 +90,9 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
         </div>
         <div className="pointer-events-auto flex max-w-full gap-1 overflow-x-auto rounded-lg border hairline bg-card/90 p-1 backdrop-blur">
           <BeginnerToggle />
+          <button onClick={() => setKitOpen(true)} title="Drawings, what to buy, rough cost, cut list and order of work" className="flex h-9 items-center gap-2 rounded-md px-3 text-xs hover:bg-secondary">
+            <Hammer className="h-3.5 w-3.5" /> Build kit
+          </button>
           <button onClick={() => setDurOpen(true)} title="What it's built for, what wears first, how to care for it" className="flex h-9 items-center gap-2 rounded-md px-3 text-xs hover:bg-secondary">
             <ShieldCheck className="h-3.5 w-3.5" /> Durability report
           </button>
@@ -157,6 +162,7 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
       {tested && (
         <ResultsCard results={results} note={WOODS[d.wood].note} tips={tips} onClose={() => setTested(false)} fixCount={failing ? fixes.length : -1} onFix={() => setFixOpen(true)} />
       )}
+      {kitOpen && <BuildKit d={d} name={brief?.brief.name ?? "Your chair"} onClose={() => setKitOpen(false)} />}
       {durOpen && (
         <DurabilityCard d={d} user={user} setting={setting} onSetting={setSetting} onSeeMath={seeMath}
           onFix={() => { setDurOpen(false); setTested(true); setFixOpen(true); }} onClose={() => setDurOpen(false)} />
