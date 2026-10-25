@@ -52,3 +52,17 @@ describe("compromise options", () => {
     expect(performance.now() - t).toBeLessThan(500);
   });
 });
+
+describe("keep my legs", () => {
+  it("keeps straight legs straight, and still finds a fix", () => {
+    const d: LabDesign = { ...START, splay: 0, seatHeight: 47, backHeight: 46 };
+    expect(fails(d, { setting: "outdoor" }).length).toBeGreaterThan(0);
+    const fixes = findFixes(d, { setting: "outdoor" }, ["base"]);
+    expect(fixes.length).toBeGreaterThan(0);
+    for (const f of fixes) {
+      expect(f.design.splay).toBe(0);
+      expect(f.design.base).toBe(d.base);
+      expect(fails(f.design, { setting: "outdoor" })).toEqual([]);
+    }
+  });
+});

@@ -38,7 +38,7 @@ const LEVERS: Record<string, Lever> = {
 const COMMON = ["joint", "stretchers", "thicker", "wood", "recline", "seatInRange", "shallower", "lessSplay"];
 export const STRATEGIES: { id: string; title: string; idea: string; levers: string[] }[] = [
   { id: "look", title: "Keep the look", idea: "Same shape and feel; the legs stand wider and the build gets sturdier.", levers: [...COMMON, "splay", "deeper"] },
-  { id: "feel", title: "Change the feel", idea: "Sit a little more upright with a shorter back, so your weight stays over the legs.", levers: [...COMMON, "upright", "shorterBack"] },
+  { id: "feel", title: "Change the feel", idea: "Sit a little more upright with a shorter back, so your weight stays over the legs.", levers: [...COMMON, "upright", "shorterBack", "deeper"] },
   { id: "stance", title: "Change the stance", idea: "A kicked-back Z-frame base that's hard to tip, like the Kangaroo.", levers: [...COMMON, "zframe", "upright"] },
 ];
 
@@ -123,7 +123,9 @@ export function findFixes(d: LabDesign, user: LabUser = {}, locked: Lockable[] =
   if (!bad(evaluateLab(d, user)).length) return [];
   const out: Fix[] = [];
   for (const st of STRATEGIES) {
-    const levers = st.levers.map((id) => LEVERS[id]!).filter((l) => !locked.includes(l.family as Lockable));
+    // "Keep my legs" keeps both the kind of legs and how far they lean.
+    const lockedFamilies: string[] = locked.includes("base") ? [...locked, "splay"] : locked;
+    const levers = st.levers.map((id) => LEVERS[id]!).filter((l) => !lockedFamilies.includes(l.family));
     const fixed = search(d, user, levers);
     const left = bad(evaluateLab(fixed, user));
     if (left.length || fixed === d) continue;
