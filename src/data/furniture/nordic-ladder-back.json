@@ -1,0 +1,79 @@
+{
+  "id": "nordic-ladder-back",
+  "name": "Nordic ladder-back side chair",
+  "category": "Chairs",
+  "style": "Nordic",
+  "description": "A plain Scandinavian-style side chair: four straight legs, a framed seat, three ladder slats between the back posts and low stretchers. Every part is a straight piece of ash.",
+  "source": "Example design written for Atelier from common side-chair proportions. Not a measured original and not yet checked by a maker.",
+  "verified": false,
+  "wood": "ash",
+  "joint": "mt",
+  "units": "cm; x = side to side, y = up, z = front (+) to back (-)",
+  "parts": [
+    {
+      "id": "frontLeg", "name": "Front leg", "role": "leg",
+      "size": [43, 3.5, 3.5],
+      "note": "Mortised on two faces for the front and side aprons.",
+      "sticks": [[[-19.25, 0, 18.25], [-19.25, 43, 18.25]], [[19.25, 0, 18.25], [19.25, 43, 18.25]]]
+    },
+    {
+      "id": "backPost", "name": "Back post (back leg)", "role": "post",
+      "size": [88.2, 3.5, 3.5],
+      "note": "One straight piece from floor to top rail, leaning back 2.9°. Mortised for the back apron and slats.",
+      "sticks": [[[-19.25, 0, -18.25], [-19.25, 88, -22.75]], [[19.25, 0, -18.25], [19.25, 88, -22.75]]]
+    },
+    {
+      "id": "frontApron", "name": "Front apron", "role": "rail",
+      "size": [38, 2.2, 7],
+      "note": "Length includes a 1.5 cm tenon at each end.",
+      "sticks": [[[-17.5, 39.5, 18.25], [17.5, 39.5, 18.25]]]
+    },
+    {
+      "id": "backApron", "name": "Back apron", "role": "rail",
+      "size": [38, 2.2, 7],
+      "note": "Length includes a 1.5 cm tenon at each end.",
+      "sticks": [[[-17.5, 39.5, -20.27], [17.5, 39.5, -20.27]]]
+    },
+    {
+      "id": "sideApron", "name": "Side apron", "role": "rail",
+      "size": [38, 2.2, 7],
+      "note": "Length includes a 1.5 cm tenon at each end. Shoulders cut 3° off square to meet the leaning back post.",
+      "sticks": [[[-19.25, 39.5, 16.5], [-19.25, 39.5, -18.5]], [[19.25, 39.5, 16.5], [19.25, 39.5, -18.5]]]
+    },
+    {
+      "id": "seat", "name": "Seat panel", "role": "seat",
+      "size": [42, 40, 2],
+      "note": "Glue up from 2-3 boards. Fix with wooden buttons so it can move across the grain.",
+      "boards": [{ "at": [0, 44, -1] }]
+    },
+    {
+      "id": "slat", "name": "Back slat", "role": "back",
+      "size": [38, 1.8, 6],
+      "note": "Length includes a 1.5 cm tenon at each end.",
+      "sticks": [[[-17.5, 60, -21.32], [17.5, 60, -21.32]], [[-17.5, 72, -21.93], [17.5, 72, -21.93]], [[-17.5, 84, -22.55], [17.5, 84, -22.55]]]
+    },
+    {
+      "id": "sideStretcher", "name": "Side stretcher", "role": "stretcher",
+      "size": [38, 2, 2.5],
+      "note": "Length includes a 1.5 cm tenon at each end.",
+      "sticks": [[[-19.25, 15, 16.5], [-19.25, 15, -18.6]], [[19.25, 15, 16.5], [19.25, 15, -18.6]]]
+    },
+    {
+      "id": "frontStretcher", "name": "Front stretcher", "role": "stretcher",
+      "size": [38, 2, 2.5],
+      "note": "Length includes a 1.5 cm tenon at each end.",
+      "sticks": [[[-17.5, 20, 18.25], [17.5, 20, 18.25]]]
+    }
+  ],
+  "steps": [
+    { "id": "mill", "label": "Mill all parts flat, square and to size", "needs": [] },
+    { "id": "layout", "label": "Mark out every mortise and tenon", "needs": [{ "id": "mill", "why": "Marks made on rough, twisted stock aren't square, so every joint inherits the error." }] },
+    { "id": "cut", "label": "Cut the mortises and tenons", "needs": [{ "id": "layout", "why": "Without layout lines the leaning back post's angled shoulders are a guess." }] },
+    { "id": "dry", "label": "Dry-fit the whole chair", "needs": [{ "id": "cut", "why": "Nothing to fit yet." }] },
+    { "id": "back", "label": "Glue the back frame: posts, back apron and slats", "needs": [{ "id": "dry", "why": "Gluing without a dry-fit: a joint that won't close is found with the glue already setting." }] },
+    { "id": "front", "label": "Glue the front frame: legs, front apron and front stretcher", "needs": [{ "id": "dry", "why": "Same as the back: fit first, then glue." }] },
+    { "id": "join", "label": "Join the frames with the side aprons and side stretchers", "needs": [{ "id": "back", "why": "A loose back frame racks out of square while the side joints set." }, { "id": "front", "why": "A loose front frame racks out of square while the side joints set." }] },
+    { "id": "seat", "label": "Fit the seat panel with wooden buttons", "needs": [{ "id": "join", "why": "There's no frame to fix the seat to yet." }] },
+    { "id": "finish", "label": "Finish coats", "needs": [{ "id": "join", "why": "Finish on joint surfaces stops glue from bonding." }] }
+  ]
+}

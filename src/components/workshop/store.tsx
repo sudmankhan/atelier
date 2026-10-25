@@ -209,3 +209,8 @@ export function useWorkshop() {
   if (!c) throw new Error("useWorkshop outside provider");
   return c;
 }
+
+/** Same as useWorkshop, but returns null on pages without the workshop provider (e.g. data-file pieces). */
+export function useWorkshopOptional() {
+  return useContext(Ctx);
+}

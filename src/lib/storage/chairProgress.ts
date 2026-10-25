@@ -3,6 +3,9 @@
 
 export type ChairId = "kangaroo" | "japanese" | "lab";
 export const CHAIR_IDS: ChairId[] = ["kangaroo", "japanese", "lab"];
+/** A hand-built chair, or a piece described in a data file (`spec:<file id>`). */
+export type PieceId = ChairId | `spec:${string}`;
+export const isSpecPiece = (id: string): id is `spec:${string}` => id.startsWith("spec:");
 
 export const MILESTONES: Record<ChairId, { id: string; label: string }[]> = {
   kangaroo: [
@@ -25,14 +28,23 @@ export const MILESTONES: Record<ChairId, { id: string; label: string }[]> = {
   ],
 };
 
+/** Pieces from data files all get the same steps. */
+export const SPEC_MILESTONES = [
+  { id: "open", label: "Opened the piece" },
+  { id: "file", label: "Read the data file" },
+  { id: "lumber", label: "Fitted it to boards" },
+  { id: "assembly", label: "Practised the assembly order" },
+];
+export const milestonesFor = (id: PieceId) => (isSpecPiece(id) ? SPEC_MILESTONES : MILESTONES[id]);
+
 interface Rec {
   seconds: number;
   done: string[];
 }
 
-const key = (id: ChairId) => `atelier.chair.${id}`;
+const key = (id: PieceId) => `atelier.chair.${id}`;
 
-function read(id: ChairId): Rec {
+function read(id: PieceId): Rec {
   try {
     const raw = localStorage.getItem(key(id));
     if (!raw) return { seconds: 0, done: [] };
@@ -43,7 +55,7 @@ function read(id: ChairId): Rec {
   }
 }
 
-function write(id: ChairId, r: Rec) {
+function write(id: PieceId, r: Rec) {
   try {
     localStorage.setItem(key(id), JSON.stringify(r));
   } catch {
@@ -51,20 +63,20 @@ function write(id: ChairId, r: Rec) {
   }
 }
 
-export function markMilestone(id: ChairId, milestone: string) {
-  if (!MILESTONES[id].some((m) => m.id === milestone)) return;
+export function markMilestone(id: PieceId, milestone: string) {
+  if (!milestonesFor(id).some((m) => m.id === milestone)) return;
   const r = read(id);
   if (!r.done.includes(milestone)) write(id, { ...r, done: [...r.done, milestone] });
 }
 
-export function addTime(id: ChairId, seconds: number) {
+export function addTime(id: PieceId, seconds: number) {
   const r = read(id);
   write(id, { ...r, seconds: r.seconds + seconds });
 }
 
-export function chairSummary(id: ChairId) {
+export function chairSummary(id: PieceId) {
   const r = read(id);
-  const all = MILESTONES[id];
+  const all = milestonesFor(id);
   const done = all.filter((m) => r.done.includes(m.id));
   return { pct: Math.round((done.length / all.length) * 100), seconds: r.seconds, done, next: all.find((m) => !r.done.includes(m.id)) ?? null };
 }

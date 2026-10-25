@@ -1,7 +1,7 @@
 import { Info } from "lucide-react";
 import { PROVENANCE, type Provenance } from "@/lib/explainers";
 import { cn } from "@/lib/utils";
-import { useWorkshop } from "./store";
+import { useWorkshopOptional } from "./store";
 
 const TONE: Record<Provenance, string> = {
   calculated: "border-teal/50 text-teal",
@@ -12,8 +12,9 @@ const TONE: Record<Provenance, string> = {
 
 /** Says where a number comes from; with `topic`, links to its How-it-works explainer. */
 export function ProvenanceBadge({ kind, topic, className }: { kind: Provenance; topic?: string; className?: string }) {
-  const { openHow } = useWorkshop();
+  const openHow = useWorkshopOptional()?.openHow;
   const p = PROVENANCE[kind];
+  if (!openHow) topic = undefined;
   const body = (
     <>
       {p.label}
@@ -22,7 +23,7 @@ export function ProvenanceBadge({ kind, topic, className }: { kind: Provenance; 
   );
   const cls = cn("inline-flex items-center gap-1 rounded-full border px-1.5 py-px text-[9px] uppercase tracking-wide", TONE[kind], className);
   return topic ? (
-    <button type="button" title={`${p.meaning} Click for how it works.`} onClick={() => openHow(topic)} className={cn(cls, "hover:bg-secondary")}>{body}</button>
+    <button type="button" title={`${p.meaning} Click for how it works.`} onClick={() => openHow?.(topic)} className={cn(cls, "hover:bg-secondary")}>{body}</button>
   ) : (
     <span title={p.meaning} className={cls}>{body}</span>
   );

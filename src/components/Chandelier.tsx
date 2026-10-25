@@ -1,7 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ClientOnly, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { chairSummary, formatTime, type ChairId } from "@/lib/storage/chairProgress";
+import { chairSummary, formatTime, type PieceId } from "@/lib/storage/chairProgress";
+import { SPECS } from "@/lib/furniture/spec";
 
 const ChairPreview = lazy(() => import("@/components/three/ChairPreview"));
 
@@ -18,7 +19,8 @@ interface Node {
   fs: number;
   serif?: boolean;
   off?: boolean;
-  chair?: ChairId;
+  chair?: PieceId;
+  fromFile?: boolean;
   icon?: string;
   desc?: string;
 }
@@ -32,7 +34,7 @@ const NODES: Node[] = [
   { id: "doors", p: "root", x: 840, y: 290, r: 5, label: "Doors · soon", fs: 15, off: true },
   { id: "mod", p: "chairs", x: 470, y: 440, r: 3.6, label: "Modernist", fs: 10 },
   { id: "jap", p: "chairs", x: 545, y: 465, r: 3.6, label: "Japanese", fs: 10 },
-  { id: "nor", p: "chairs", x: 615, y: 440, r: 3.2, label: "Nordic · soon", fs: 9, off: true },
+  { id: "nor", p: "chairs", x: 615, y: 440, r: 3.6, label: "Nordic", fs: 10 },
   { id: "own", p: "chairs", x: 685, y: 465, r: 3.6, label: "Your own", fs: 10 },
   { id: "kang", p: "mod", x: 468, y: 530, r: 2, label: "Kangaroo lounge chair", fs: 5.2, chair: "kangaroo", icon: "M-9,7 L-5,-1 L6,-1 M-5,-1 L-2,7 M6,-1 L10,-11 M3,-1 L7,7",
     desc: "Chandigarh modernism. A Z-shaped teak frame that leans back on its own kickstand, with a caned seat and back." },
@@ -41,6 +43,13 @@ const NODES: Node[] = [
   { id: "lab", p: "own", x: 683, y: 556, r: 2, label: "Your own chair", fs: 5.2, chair: "lab", icon: "M-7,-1 L7,-1 M-6,-1 L-6,7 M6,-1 L6,7 M-6,-1 L-6,-10",
     desc: "Start from a blank bench: pick a base, back, joints and wood, then test it for tipping and wobble." },
 ];
+// Pieces described in data files hang under their style automatically.
+const STYLE_NODE: Record<string, string> = { Nordic: "nor", Modernist: "mod", Japanese: "jap" };
+const LADDER = "M-7,-1 L7,-1 M-6,-1 L-6,7 M6,-1 L6,7 M-6,-1 L-6,-12 M6,-1 L6,-12 M-6,-10 L6,-10 M-6,-7 L6,-7 M-6,-4 L6,-4";
+SPECS.forEach((s, i) => {
+  const parent = NODES.find((n) => n.id === (STYLE_NODE[s.style] ?? "nor"))!;
+  NODES.push({ id: `spec-${s.id}`, p: parent.id, x: parent.x - 2 + i * 14, y: parent.y + 90, r: 2, label: s.name.replace(/^Nordic /, "").replace(/^./, (c) => c.toUpperCase()), fs: 5.2, chair: `spec:${s.id}`, icon: LADDER, desc: s.description, fromFile: true });
+});
 const BY = Object.fromEntries(NODES.map((n) => [n.id, n])) as Record<string, Node>;
 const kids = (id: string) => NODES.filter((n) => n.p === id);
 const descendants = (id: string): Node[] => kids(id).flatMap((k) => [k, ...descendants(k.id)]);
@@ -111,7 +120,7 @@ export function Chandelier() {
 
   const leaf = BY[focus]?.chair ? BY[focus]! : null;
   const trail = [...ancestors(focus)].reverse().concat(focus).map((id) => BY[id]!);
-  const open = (chair: ChairId) => navigate({ to: "/workshop", search: { chair } });
+  const open = (chair: PieceId) => navigate({ to: "/workshop", search: { chair } });
 
   return (
     <div ref={wrap} className="relative h-full w-full overflow-hidden">
@@ -186,6 +195,7 @@ function ChairCard({ n, onOpen }: { n: Node; onOpen: () => void }) {
           </ClientOnly>
         </div>
         <div className="mt-3 font-serif text-2xl">{n.label}</div>
+        {n.fromFile && <div className="mt-1 inline-block rounded-full border border-teal/50 px-2 py-0.5 text-[10px] uppercase tracking-wide text-teal">Made from a data file</div>}
         <p className="mt-1 text-sm text-muted-foreground">{n.desc}</p>
         <div className="mt-3 h-1 overflow-hidden rounded-full bg-secondary">
           <div className="h-full bg-teal transition-all duration-700" style={{ width: `${s?.pct ?? 0}%` }} />
