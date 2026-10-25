@@ -11,7 +11,7 @@ import { addTime, markMilestone, type ChairId } from "@/lib/storage/chairProgres
 export type { Typology, AnyPartId };
 export type AnyParams = ChairParams | JapaneseParams;
 export type AnyConsequences = Consequences | JConsequences;
-export type Section = "discover" | "study" | "design" | "build" | "lab" | "projects" | "library" | "progress" | "how";
+export type Section = "discover" | "study" | "design" | "build" | "lab" | "projects" | "library" | "progress" | "how" | "templates";
 export type BenchTab = "inspect" | "feedback" | "shop" | "lumber" | "joints" | "ask";
 
 export interface ChatMsg {
@@ -208,4 +208,9 @@ export function useWorkshop() {
   const c = useContext(Ctx);
   if (!c) throw new Error("useWorkshop outside provider");
   return c;
+}
+
+/** Same as useWorkshop, but returns null on pages without the workshop provider (e.g. data-file pieces). */
+export function useWorkshopOptional() {
+  return useContext(Ctx);
 }

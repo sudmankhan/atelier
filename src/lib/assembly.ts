@@ -35,7 +35,11 @@ export interface OrderError { opId: string; label: string; missing: string; why:
 
 /** Every op whose prerequisites were not placed before it, with the shop consequence. */
 export function evaluateOrder(t: Typology, order: string[]): OrderError[] {
-  const ops = OPS[t];
+  return evaluateOps(OPS[t], order);
+}
+
+/** Same check for any list of steps (used by furniture described in data files). */
+export function evaluateOps(ops: Op[], order: string[]): OrderError[] {
   const pos = new Map(order.map((id, i) => [id, i]));
   const errs: OrderError[] = [];
   for (const op of ops) {
@@ -52,7 +56,11 @@ export function evaluateOrder(t: Typology, order: string[]): OrderError[] {
 }
 
 export function shuffled(t: Typology, seed = Date.now()): string[] {
-  const a = OPS[t].map((o) => o.id);
+  return shuffleIds(OPS[t].map((o) => o.id), seed);
+}
+
+export function shuffleIds(ids: string[], seed = Date.now()): string[] {
+  const a = [...ids];
   let s = seed % 2147483647 || 1;
   for (let i = a.length - 1; i > 0; i--) {
     s = (s * 16807) % 2147483647;
