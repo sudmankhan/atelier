@@ -6,7 +6,7 @@ import { roughOf, type CutRow } from "@/lib/chair/shop";
 import { density12 } from "@/lib/chair/woodProperties";
 import { DEFAULT_LOADS } from "@/lib/chair/loads";
 import { DEFAULT_PUSH_HEIGHT_CM, combineWeights, defaultComZ, leverArm, tippingStatics, type StaticsResult } from "@/lib/statics";
-import { BLANK, evaluateLab, type LabDesign, type LabResult } from "@/lib/lab";
+import { BLANK, evaluateLab, type LabDesign, type LabResult, type LabUser } from "@/lib/lab";
 import { allocate, type StockBoard } from "@/lib/chair/allocate";
 
 type V3 = [number, number, number];
@@ -105,7 +105,7 @@ export function specAsLab(s: FurnitureSpec): LabDesign {
 }
 
 /** Test results: stability from this file's own weight and feet; joints, parts and comfort by the Lab's rules. */
-export function specResults(s: FurnitureSpec, user: { poplitealHeight?: number } = {}): LabResult[] {
+export function specResults(s: FurnitureSpec, user: LabUser = {}): LabResult[] {
   const tip = specTipping(s);
   const thr = tip.result.thresholdF ?? 0;
   const L = DEFAULT_LOADS.leanN;

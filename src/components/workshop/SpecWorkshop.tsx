@@ -8,9 +8,11 @@ import { DIM_LABELS, SAMPLE_BOARDS, resizeSpec, specBoardFeet, specCutList, spec
 import { deleteDesign, downloadSpec, fileOf } from "@/lib/furniture/saved";
 import { evaluateOps, shuffleIds } from "@/lib/assembly";
 import { addTime, markMilestone, type PieceId } from "@/lib/storage/chairProgress";
-import { JOINT_TYPES, WOODS, type Level } from "@/lib/lab";
+import { JOINT_TYPES, WOODS } from "@/lib/lab";
 import { ProvenanceBadge } from "./ProvenanceBadge";
 import { cn } from "@/lib/utils";
+import { SETTINGS, type Setting } from "@/lib/weather";
+import { BeginnerToggle, ResultRow, useBeginner, Words } from "@/components/Words";
 
 type Tab = "file" | "tests" | "cut" | "lumber" | "assembly";
 const TABS: { id: Tab; label: string; hint: string }[] = [
@@ -32,8 +34,6 @@ const sizeKey = (id: string) => `atelier.size.${id}`;
 function loadDims(id: string): Partial<Dims> {
   try { return JSON.parse(localStorage.getItem(sizeKey(id)) ?? "{}"); } catch { return {}; }
 }
-const tone: Record<Level, string> = { good: "border-teal", warn: "border-walnut", bad: "border-alert" };
-const txt: Record<Level, string> = { good: "text-teal", warn: "text-walnut", bad: "text-alert" };
 
 /** Workshop for a piece described in a data file. Everything on this page is generated from the file. */
 export function SpecWorkshop({ spec: original }: { spec: FurnitureSpec }) {
@@ -112,6 +112,7 @@ export function SpecWorkshop({ spec: original }: { spec: FurnitureSpec }) {
             <p className="mt-1 text-xs text-muted-foreground">No code was written for this chair: one file goes in, everything on this page comes out.</p>
           </div>
           <div className="pointer-events-auto flex gap-1 rounded-lg border hairline bg-card/90 p-1 backdrop-blur">
+            <BeginnerToggle />
             <button onClick={() => setExploded(!exploded)} aria-pressed={exploded} title="Pull the chair apart to see every piece" className={cn("flex h-9 items-center gap-2 rounded-md px-3 text-xs", exploded ? "bg-teal text-accent-foreground" : "hover:bg-secondary")}>
               <Layers className="h-3.5 w-3.5" /> Explode
             </button>
@@ -123,7 +124,7 @@ export function SpecWorkshop({ spec: original }: { spec: FurnitureSpec }) {
               <div><div className="eyebrow">{picked.role}</div><div className="mt-0.5 text-base">{picked.name} <span className="text-muted-foreground">×{pickedCut.qty}</span></div></div>
               <button aria-label="Close" onClick={() => setHighlight(null)} className="text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
             </div>
-            <p className="mt-1 text-muted-foreground">{ROLE[picked.role]}{picked.note ? ` ${picked.note}` : ""}</p>
+            <p className="mt-1 text-muted-foreground"><Words text={`${ROLE[picked.role]}${picked.note ? ` ${picked.note}` : ""}`} /></p>
             <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-[10px]">
               <div className="rounded bg-secondary/60 p-1.5"><div className="font-sans text-muted-foreground">Finished</div>{pickedCut.finished.l} × {pickedCut.finished.w} × {pickedCut.finished.t}</div>
               <div className="rounded bg-secondary/60 p-1.5"><div className="font-sans text-muted-foreground">Rough (to buy)</div>{pickedCut.rough.l} × {pickedCut.rough.w} × {pickedCut.rough.t}</div>
@@ -213,27 +214,34 @@ function FileTab({ original, sized, piece }: { original: FurnitureSpec; sized: F
 
 function TestsTab({ spec }: { spec: FurnitureSpec }) {
   const [knee, setKnee] = useState<number | "">("");
-  const results = specResults(spec, knee === "" ? {} : { poplitealHeight: knee });
+  const [setting, setSetting] = useState<Setting>("indoor");
+  const [beginner] = useBeginner();
+  const results = specResults(spec, knee === "" ? { setting } : { poplitealHeight: knee, setting });
   const counts = { good: 0, warn: 0, bad: 0 };
   for (const r of results) counts[r.level]++;
   return (
     <div className="space-y-3">
       <div>
         <h3 className="text-2xl">Tests</h3>
-        <p className="mt-1 text-muted-foreground">The same physics as the other chairs: the lean-back test uses this file's own parts, weight and feet; joints, parts and comfort use the Build-your-own rules.</p>
+        <p className="mt-1 text-muted-foreground">{beginner ? "Will it tip, wobble, fit you, and survive where it lives? Each result says what to do about it." : <Words text="The same physics as the other chairs: the lean-back test uses this file's own parts, weight and feet; joints, parts and comfort use the Build-your-own rules." />}</p>
         <p className="mt-2 font-mono"><span className="text-teal">{counts.good} good</span> · <span className="text-walnut">{counts.warn} to watch</span> · <span className="text-alert">{counts.bad} problem{counts.bad === 1 ? "" : "s"}</span></p>
       </div>
-      {results.map((r, i) => (
-        <div key={i} className={cn("rounded-md border-l-2 bg-background p-2.5", tone[r.level])}>
-          <div className="flex items-center justify-between gap-2"><div className="text-[10px] uppercase tracking-wide text-muted-foreground">{r.area}</div><ProvenanceBadge kind={r.basis} topic="lab" /></div>
-          <div className={cn("text-sm", txt[r.level])}>{r.title}</div>
-          <div className="mt-0.5 text-muted-foreground">{r.detail}</div>
+      <div>
+        <div className="eyebrow">Where will it live?</div>
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {SETTINGS.map((x) => (
+            <button key={x.id} onClick={() => setSetting(x.id)} title={x.hint} className={cn("rounded-full border px-3 py-1 text-xs", setting === x.id ? "border-teal bg-teal-soft text-teal" : "hairline text-muted-foreground hover:text-foreground")}>{x.label}</button>
+          ))}
         </div>
+      </div>
+      {results.map((r, i) => (
+        <ResultRow key={`${r.area}-${i}`} r={r} beginner={beginner} badge={<ProvenanceBadge kind={r.basis} topic={r.area === "Weather" ? "weather" : "lab"} />} />
       ))}
       <label className="block">
         <span>Your knee height (optional, cm) <span className="text-muted-foreground">— checks the seat height fits your legs</span></span>
         <input type="number" min={30} max={65} value={knee} onChange={(e) => setKnee(e.target.value === "" ? "" : +e.target.value)} className="mt-1 w-full rounded border hairline bg-background px-2 py-1" />
       </label>
+      <p className="text-[11px] text-muted-foreground">No lifespan in years: that depends on climate, care and finish, and no honest source can promise one. These checks say what would wear out first.</p>
     </div>
   );
 }
@@ -251,7 +259,7 @@ function CutTab({ spec, highlight, onPick }: { spec: FurnitureSpec; highlight: s
             const id = spec.parts[i]!.id;
             return (
               <tr key={c.part} onClick={() => onPick(highlight === id ? null : id)} className={cn("cursor-pointer border-t hairline align-top hover:bg-secondary/50", highlight === id && "bg-teal-soft")}>
-                <td className="py-1.5 pr-2">{c.part}{c.note && <div className="text-[10px] text-muted-foreground">{c.note}</div>}</td>
+                <td className="py-1.5 pr-2">{c.part}{c.note && <div className="text-[10px] text-muted-foreground"><Words text={c.note} /></div>}</td>
                 <td className="py-1.5 pr-2 font-mono">{c.qty}</td>
                 <td className="whitespace-nowrap py-1.5 pr-2 font-mono text-[10px]">{c.finished.l} × {c.finished.w} × {c.finished.t}</td>
                 <td className="whitespace-nowrap py-1.5 font-mono text-[10px] text-muted-foreground">{c.rough.l} × {c.rough.w} × {c.rough.t}</td>
@@ -330,7 +338,7 @@ function AssemblyTab({ spec }: { spec: FurnitureSpec }) {
           return (
             <li key={id} className={cn("flex items-center gap-2 rounded-md border hairline px-2 py-1.5", bad && "border-alert")}>
               <span className="w-4 font-mono text-muted-foreground">{i + 1}</span>
-              <span className="flex-1">{s.label}</span>
+              <span className="flex-1"><Words text={s.label} /></span>
               <button aria-label="Move up" onClick={() => move(i, -1)} className="p-0.5 text-muted-foreground hover:text-foreground"><ArrowUp className="h-3.5 w-3.5" /></button>
               <button aria-label="Move down" onClick={() => move(i, 1)} className="p-0.5 text-muted-foreground hover:text-foreground"><ArrowDown className="h-3.5 w-3.5" /></button>
             </li>
@@ -340,7 +348,7 @@ function AssemblyTab({ spec }: { spec: FurnitureSpec }) {
       <button onClick={() => setChecked(true)} className="rounded-md bg-primary px-3 py-1.5 text-primary-foreground">Check my order</button>
       {checked && (errs.length === 0
         ? <p className="text-teal">That order works: every step comes after what it needs.</p>
-        : <ul className="space-y-1.5">{errs.map((e, i) => <li key={i} className="rounded-md bg-alert/10 p-2"><span className="font-medium text-alert">{e.label}</span> before <span className="font-medium">{e.missing}</span>: {e.why}</li>)}</ul>)}
+        : <ul className="space-y-1.5">{errs.map((e, i) => <li key={i} className="rounded-md bg-alert/10 p-2"><span className="font-medium text-alert">{e.label}</span> before <span className="font-medium">{e.missing}</span>: <Words text={e.why} /></li>)}</ul>)}
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { DEFAULT_LOADS, type LoadCase } from "./chair/loads";
 import { jointStress, type JointStress } from "./chair/jointStress";
 import { movementMm, DEFAULT_DELTA_MC } from "./chair/movement";
 import { WOOD_PROPERTIES } from "./chair/woodProperties";
+import { DELTA_MC, weatherResults, type Setting } from "./weather";
 
 export type Base = "four" | "splayed" | "sled" | "zframe";
 export type Back = "none" | "slats" | "spindles" | "panel";
@@ -42,7 +43,7 @@ export type Level = "good" | "warn" | "bad";
 /** calculated = from geometry/statics/USDA data; assumption = calculated but driven by an assumed load; rule = shop rule of thumb */
 export type Basis = "calculated" | "assumption" | "rule";
 export interface LabResult { area: string; level: Level; title: string; detail: string; basis: Basis }
-export interface LabUser { poplitealHeight?: number }
+export interface LabUser { poplitealHeight?: number; /** where the chair will live; adds weather checks */ setting?: Setting }
 
 const r0 = (n: number) => Math.round(n);
 const r1 = (n: number) => Math.round(n * 10) / 10;
@@ -154,12 +155,14 @@ export function evaluateLab(d: LabDesign, user: LabUser = {}, L: LoadCase = DEFA
       : { area: "Comfort", level: "good", basis: "rule", title: `Back angle ${a}°`, detail: a > 108 ? "Lounge recline." : "Dining/work posture." });
     if (d.back === "panel") {
       const width = d.seatWidth - 7;
-      const mm = movementMm(width, d.wood);
-      out.push({ area: "Wood movement", level: "warn", basis: "calculated", title: `Solid back panel moves ≈ ${r1(mm)} mm`, detail: `A ${r0(width)} cm flatsawn ${WOOD_PROPERTIES[d.wood].commonName.toLowerCase()} panel changes ${r1(mm)} mm across the grain over a ${DEFAULT_DELTA_MC}-point moisture swing (Wood Handbook Eq. 13–2). Float it in a groove; never glue it all round.` });
+      const dmc = DELTA_MC[user.setting ?? "indoor"];
+      const mm = movementMm(width, d.wood, dmc);
+      out.push({ area: "Wood movement", level: "warn", basis: dmc === DEFAULT_DELTA_MC ? "calculated" : "assumption", title: `Solid back panel moves ≈ ${r1(mm)} mm`, detail: `A ${r0(width)} cm flatsawn ${WOOD_PROPERTIES[d.wood].commonName.toLowerCase()} panel changes ${r1(mm)} mm across the grain over a ${dmc}-point moisture swing (Wood Handbook Eq. 13–2). Float it in a groove; never glue it all round.` });
     }
     if (d.back === "spindles" && d.base === "four" && d.joint === "screw") out.push({ area: "Craft", level: "warn", basis: "rule", title: "Mixed construction", detail: "Spindle backs are drilled into a solid seat — that's a wedged-tenon chair. Screws undercut the whole idea." });
   }
   if (d.joint === "wedged" && d.base !== "splayed") out.push({ area: "Craft", level: "warn", basis: "rule", title: "Wedged tenons want a solid seat", detail: "Wedged round tenons work best through a thick slab with splayed legs (Windsor / Japanese tradition)." });
   if (d.splay > 14) out.push({ area: "Parts", level: "warn", basis: "rule", title: `Splay ${d.splay}°`, detail: "Feet stick out into walkways, and the angled socket leaves short grain at the seat edge." });
+  if (user.setting) out.push(...weatherResults({ wood: d.wood, joint: d.joint, seatWidthCm: d.seatWidth }, user.setting));
   return out;
 }

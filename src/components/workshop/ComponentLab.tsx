@@ -3,7 +3,10 @@ import { useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Check, FileJson, Maximize2, Minimize2, ScanEye, X } from "lucide-react";
 import { labToSpec } from "@/lib/furniture/fromLab";
 import { saveDesign } from "@/lib/furniture/saved";
-import { BLANK, JOINT_TYPES, WOODS, evaluateLab, labTipping, type Back, type Base, type LabDesign, type Level } from "@/lib/lab";
+import { SETTINGS, type Setting } from "@/lib/weather";
+import { wordByTerm } from "@/lib/words";
+import { BeginnerToggle, ResultRow, useBeginner, Words } from "@/components/Words";
+import { BLANK, JOINT_TYPES, WOODS, evaluateLab, labTipping, type Back, type Base, type LabDesign } from "@/lib/lab";
 import { StudioShell } from "@/components/three/StudioCanvas";
 import { LabModel } from "@/components/three/LabModel";
 import { cn } from "@/lib/utils";
@@ -25,8 +28,6 @@ const BACKS: { id: Back; label: string }[] = [
   { id: "spindles", label: "Spindles" },
   { id: "panel", label: "Solid panel" },
 ];
-const tone: Record<Level, string> = { good: "border-teal", warn: "border-walnut", bad: "border-alert" };
-const txt: Record<Level, string> = { good: "text-teal", warn: "text-walnut", bad: "text-alert" };
 
 export function ComponentLab() {
   const { mark } = useWorkshop();
@@ -36,7 +37,8 @@ export function ComponentLab() {
   const [panel, setPanel] = useState(true);
   const set = <K extends keyof LabDesign>(k: K, v: LabDesign[K]) => { mark("pick"); setD((x) => ({ ...x, [k]: v })); };
   const [knee, setKnee] = useState<number | "">("");
-  const results = evaluateLab(d, knee === "" ? {} : { poplitealHeight: knee });
+  const [setting, setSetting] = useState<Setting>("indoor");
+  const results = evaluateLab(d, knee === "" ? { setting } : { poplitealHeight: knee, setting });
   const tip = labTipping(d);
   const tips = tested && results.some((r) => r.area === "Stability" && r.level === "bad");
   return (
@@ -53,6 +55,7 @@ export function ComponentLab() {
           <h2 className="mt-1 text-2xl">Pick parts, then test your chair</h2>
         </div>
         <div className="pointer-events-auto flex gap-1 rounded-lg border hairline bg-card/90 p-1 backdrop-blur">
+          <BeginnerToggle />
           <button onClick={() => setXray(!xray)} aria-pressed={xray} title="See-through view: the wood turns glassy so you can see where each joint sits and how big it is" className={cn("flex h-9 items-center gap-2 rounded-md px-3 text-xs", xray ? "bg-teal text-accent-foreground" : "hover:bg-secondary")}>
             <ScanEye className="h-3.5 w-3.5" /> See joints
           </button>
@@ -68,6 +71,7 @@ export function ComponentLab() {
           <Pick title="Back" hint="What you lean on. No back = a stool." opts={BACKS} v={d.back} on={(v) => set("back", v)} />
           <Pick title="Joints" hint="How the legs lock into the seat. Mortise & tenon is strongest, screws weakest." opts={Object.entries(JOINT_TYPES).map(([id, j]) => ({ id: id as LabDesign["joint"], label: j.name }))} v={d.joint} on={(v) => set("joint", v)} />
           <Pick title="Wood" hint="Harder wood holds joints tighter; pine is soft." opts={Object.entries(WOODS).map(([id, x]) => ({ id: id as LabDesign["wood"], label: x.name }))} v={d.wood} on={(v) => set("wood", v)} />
+          <Pick title="Where will it live?" hint="Outdoors, wood gets wet, rots and moves more." opts={SETTINGS.map((x) => ({ id: x.id, label: x.label, tip: x.hint }))} v={setting} on={setSetting} />
           <div className="eyebrow">Sizes</div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-3">
             <Num label="Seat height" u="cm" v={d.seatHeight} min={30} max={60} on={(n) => set("seatHeight", n)} />
@@ -118,6 +122,7 @@ export function ComponentLab() {
 
 function ResultsCard({ results, note, tips, onClose }: { results: ReturnType<typeof evaluateLab>; note: string; tips: boolean; onClose: () => void }) {
   const [min, setMin] = useState(false);
+  const [beginner] = useBeginner();
   const counts = { good: 0, warn: 0, bad: 0 };
   for (const r of results) counts[r.level]++;
   return (
@@ -136,11 +141,7 @@ function ResultsCard({ results, note, tips, onClose }: { results: ReturnType<typ
         <div className="mt-2 max-h-[50vh] space-y-2 overflow-y-auto">
           {tips && <p className="text-xs text-alert">The model is tilted back because the static tipping check says a gentle lean tips it.</p>}
           {results.map((r, k) => (
-            <div key={k} className={cn("rounded-md border-l-2 bg-background p-2.5", tone[r.level])}>
-              <div className="flex items-center justify-between gap-2"><div className="text-[10px] uppercase tracking-wide text-muted-foreground">{r.area}</div><ProvenanceBadge kind={r.basis} topic="lab" /></div>
-              <div className={cn("text-sm", txt[r.level])}>{r.title}</div>
-              <div className="mt-0.5 text-xs text-muted-foreground">{r.detail}</div>
-            </div>
+            <ResultRow key={k} r={r} beginner={beginner} badge={<ProvenanceBadge kind={r.basis} topic={r.area === "Weather" ? "weather" : "lab"} />} />
           ))}
           <p className="text-[11px] text-muted-foreground">Updates as you change parts. {note}</p>
         </div>
@@ -220,14 +221,14 @@ function SaveDesign({ d }: { d: LabDesign }) {
   );
 }
 
-function Pick<T extends string>({ title, hint, opts, v, on }: { title: string; hint?: string; opts: { id: T; label: string }[]; v: T; on: (v: T) => void }) {
+function Pick<T extends string>({ title, hint, opts, v, on }: { title: string; hint?: string; opts: { id: T; label: string; tip?: string }[]; v: T; on: (v: T) => void }) {
   return (
     <div>
       <div className="eyebrow">{title}</div>
-      {hint && <div className="mb-1.5 mt-0.5 text-[11px] text-muted-foreground">{hint}</div>}
+      {hint && <div className="mb-1.5 mt-0.5 text-[11px] text-muted-foreground"><Words text={hint} /></div>}
       <div className="flex flex-wrap gap-1.5">
         {opts.map((o) => (
-          <button key={o.id} onClick={() => on(o.id)} className={cn("rounded-full border px-3 py-1 text-xs", v === o.id ? "border-teal bg-teal-soft text-teal" : "hairline text-muted-foreground hover:text-foreground")}>{o.label}</button>
+          <button key={o.id} onClick={() => on(o.id)} title={o.tip ?? wordByTerm(o.label)?.plain} className={cn("rounded-full border px-3 py-1 text-xs", v === o.id ? "border-teal bg-teal-soft text-teal" : "hairline text-muted-foreground hover:text-foreground")}>{o.label}</button>
         ))}
       </div>
     </div>
