@@ -1,6 +1,9 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Chandelier } from "@/components/Chandelier";
+import { saveDesign, deleteDesign } from "@/lib/furniture/saved";
+import { labToSpec } from "@/lib/furniture/fromLab";
+import { BLANK } from "@/lib/lab";
 
 vi.mock("@/components/three/ChairPreview", () => ({
   default: ({ chair }: { chair: string }) => (
@@ -18,6 +21,7 @@ vi.mock("framer-motion", () => ({
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  localStorage.clear();
 });
 
 describe("Collection branch tree", () => {
@@ -100,6 +104,56 @@ describe("Collection branch tree", () => {
     expect(width()).toBeLessThan(overview);
     fireEvent.click(screen.getByRole("button", { name: "Next branch" }));
     expect(width()).toBe(overview);
+  });
+
+  it("loads saved designs under one Your own branch and opens their saved model", async () => {
+    const first = labToSpec(BLANK, "My workshop chair", new Date(1000));
+    const second = labToSpec({ ...BLANK, back: "spindles" }, "My spindle chair", new Date(2000));
+    saveDesign(first);
+    saveDesign(second);
+    const onOpen = vi.fn();
+    render(<Chandelier onOpen={onOpen} />);
+    fireEvent.click(screen.getByRole("button", { name: "Chairs" }));
+    expect(screen.getAllByRole("button", { name: "Your own" })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Your own" }));
+    expect(screen.getByRole("button", { name: "Component lab" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: first.name })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: second.name }));
+    expect(screen.getByRole("dialog", { name: second.name })).toBeInTheDocument();
+    expect(await screen.findByTestId("furniture-model-preview")).toHaveTextContent(
+      `spec:${second.id}`,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Set this piece on the bench" }));
+    expect(onOpen).toHaveBeenCalledWith(`spec:${second.id}`);
+  });
+
+  it("updates and removes saved leaves live without duplicating the branch or losing navigation", () => {
+    const design = labToSpec(BLANK, "A new chair", new Date(3000));
+    render(<Chandelier onOpen={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Chairs" }));
+    fireEvent.click(screen.getByRole("button", { name: "Your own" }));
+    act(() => saveDesign(design));
+    expect(screen.getByRole("button", { name: design.name })).toBeInTheDocument();
+    act(() => saveDesign({ ...design, name: "Renamed chair" }));
+    expect(screen.queryByRole("button", { name: design.name })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Renamed chair" }));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    act(() => deleteDesign(design.id));
+    expect(screen.queryByRole("button", { name: "Renamed chair" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Component lab" })).toBeInTheDocument();
+  });
+
+  it("refreshes saved furniture when another tab changes storage", () => {
+    render(<Chandelier onOpen={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Chairs" }));
+    fireEvent.click(screen.getByRole("button", { name: "Your own" }));
+    const design = labToSpec(BLANK, "Chair from another tab", new Date(4000));
+    localStorage.setItem("atelier.designs", JSON.stringify([design]));
+    fireEvent(window, new StorageEvent("storage", { key: "atelier.designs" }));
+    expect(screen.getByRole("button", { name: design.name })).toBeInTheDocument();
+    localStorage.removeItem("atelier.designs");
+    fireEvent(window, new StorageEvent("storage", { key: null }));
+    expect(screen.queryByRole("button", { name: design.name })).not.toBeInTheDocument();
   });
 
   it("returns directly to an earlier category or style at its original zoom", () => {

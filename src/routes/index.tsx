@@ -3,7 +3,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { createFileRoute } from "@tanstack/react-router";
 import { Chandelier } from "@/components/Chandelier";
 import { shopSession } from "@/lib/shopSession";
-import type { ChairId } from "@/lib/storage/chairProgress";
+import type { PieceId } from "@/lib/storage/chairProgress";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -30,17 +30,17 @@ export const Route = createFileRoute("/")({
 function Index() {
   const navigate = Route.useNavigate();
   const reduce = useReducedMotion();
-  const [entering, setEntering] = useState<ChairId | null>(null);
+  const [entering, setEntering] = useState<PieceId | null>(null);
   const [entryError, setEntryError] = useState(false);
   const busy = useRef(false);
-  const openChair = (chair: ChairId) => {
+  const openChair = (chair: PieceId) => {
     if (busy.current) return;
     busy.current = true;
     setEntryError(false);
     if (reduce) void enterWorkshop(chair);
     else setEntering(chair);
   };
-  const enterWorkshop = async (chair: ChairId) => {
+  const enterWorkshop = async (chair: PieceId) => {
     shopSession("atelier-workshop-enter", "yes");
     try {
       await navigate({ to: "/workshop", search: { chair } });

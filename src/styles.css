@@ -507,3 +507,5 @@
   .node-breadcrumbs { font-size: 9px; }
   .node-breadcrumbs [aria-current] { max-width: 130px; }
 }
+
+.tree-trunk-title { font-family: var(--font-serif); font-size: 29px; letter-spacing: -.04em; fill: var(--foreground); }

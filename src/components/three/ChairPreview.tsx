@@ -6,17 +6,35 @@ import { LabModel } from "./LabModel";
 import { BASELINE } from "@/lib/chair/params";
 import { J_BASELINE } from "@/lib/chair/japanese/params";
 import { BLANK, type LabDesign } from "@/lib/lab";
-import type { ChairId } from "@/lib/storage/chairProgress";
+import { isSpecPiece, type PieceId } from "@/lib/storage/chairProgress";
+import { findSpec } from "@/lib/furniture/saved";
+import { SpecModel } from "./SpecModel";
 
-const LAB_PREVIEW: LabDesign = { ...BLANK, base: "splayed", back: "spindles", joint: "wedged", wood: "oak", splay: 8, stretchers: true };
+const LAB_PREVIEW: LabDesign = {
+  ...BLANK,
+  base: "splayed",
+  back: "spindles",
+  joint: "wedged",
+  wood: "oak",
+  splay: 8,
+  stretchers: true,
+};
 
 /** Small slowly-turning 3D model for the chandelier card. Same models as the workshop. */
-export default function ChairPreview({ chair, autoRotate = true }: { chair: ChairId; autoRotate?: boolean }) {
+export default function ChairPreview({
+  chair,
+  autoRotate = true,
+}: {
+  chair: PieceId;
+  autoRotate?: boolean;
+}) {
+  const spec = isSpecPiece(chair) ? findSpec(chair.slice(5)) : null;
   return (
     <StudioShell autoRotate={autoRotate} initial="three">
       {chair === "kangaroo" && <ChairModel params={BASELINE} />}
       {chair === "japanese" && <JapaneseChairModel params={J_BASELINE} />}
       {chair === "lab" && <LabModel d={LAB_PREVIEW} xray={false} tipping={false} />}
+      {spec && <SpecModel spec={spec} />}
     </StudioShell>
   );
 }
