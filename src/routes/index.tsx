@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { createFileRoute } from "@tanstack/react-router";
+import { AtelierEntrance } from "@/components/AtelierEntrance";
 import { Chandelier } from "@/components/Chandelier";
 import { shopSession } from "@/lib/shopSession";
 import type { PieceId } from "@/lib/storage/chairProgress";
@@ -53,37 +54,39 @@ function Index() {
   };
 
   return (
-    <div className="collection-page branch-page">
-      <a href="#main-content" className="collection-skip">
-        Skip to content
-      </a>
-      <div inert={!!entering}>
-        <header className="collection-header">
-          <a href="/" className="collection-wordmark" aria-label="Atelier home">
-            Atelier<span aria-hidden="true">.</span>
-          </a>
-          <span className="collection-header-note">An open studio for the curious maker</span>
-          <span className="branch-header-note">Furniture, rooted in craft</span>
-        </header>
-        <main id="main-content" className="branch-main">
-          <Chandelier interactive={!entering} entering={!!entering} onOpen={openChair} />
-        </main>
-        {entryError && (
-          <p role="alert" className="collection-error">
-            The workshop could not open. Please try again.
-          </p>
+    <AtelierEntrance>
+      <div className="collection-page branch-page">
+        <a href="#main-content" className="collection-skip">
+          Skip to content
+        </a>
+        <div inert={!!entering}>
+          <header className="collection-header">
+            <a href="/" className="collection-wordmark" aria-label="Atelier home">
+              Atelier<span aria-hidden="true">.</span>
+            </a>
+            <span className="collection-header-note">Wood, joinery & the craft of furniture</span>
+            <span className="branch-header-note">Measure. Mark. Make.</span>
+          </header>
+          <main id="main-content" className="branch-main">
+            <Chandelier interactive={!entering} entering={!!entering} onOpen={openChair} />
+          </main>
+          {entryError && (
+            <p role="alert" className="collection-error">
+              The workshop could not open. Please try again.
+            </p>
+          )}
+        </div>
+        {entering && (
+          <motion.div
+            className="collection-enter-wash"
+            aria-hidden="true"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.45, ease: "easeIn" }}
+            onAnimationComplete={() => void enterWorkshop(entering)}
+          />
         )}
       </div>
-      {entering && (
-        <motion.div
-          className="collection-enter-wash"
-          aria-hidden="true"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.45, ease: "easeIn" }}
-          onAnimationComplete={() => void enterWorkshop(entering)}
-        />
-      )}
-    </div>
+    </AtelierEntrance>
   );
 }

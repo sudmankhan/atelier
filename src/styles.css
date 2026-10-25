@@ -508,4 +508,37 @@
   .node-breadcrumbs [aria-current] { max-width: 130px; }
 }
 
-.tree-trunk-title { font-family: var(--font-serif); font-size: 29px; letter-spacing: -.04em; fill: var(--foreground); }
+
+.node-collection .is-selected .node-bud { fill: #503723; }
+.node-collection .node-focus-halo, .node-collection .node-label-accent { stroke: var(--branch-bark); }
+.own-design-pagination { position: absolute; right: 4%; bottom: 105px; z-index: 3; display: flex; align-items: center; gap: 10px; padding: 3px 6px; background: var(--branch-paper); color: var(--branch-bark); font-size: 10px; border-bottom: 1px solid #76544030; }
+.own-design-pagination button { display: grid; place-items: center; width: 30px; height: 30px; cursor: pointer; border-radius: 50%; }
+.own-design-pagination button:hover { background: #7654400d; }
+.node-saved text { animation: saved-name-arrive .22s ease-out both; }
+@keyframes saved-name-arrive { from { opacity: 0; transform: translateX(5px); } to { opacity: 1; transform: translateX(0); } }
+@media (max-width: 700px) {
+  .own-design-pagination { right: 50%; transform: translateX(50%); bottom: 100px; }
+}
+@media (prefers-reduced-motion: reduce) { .node-saved text { animation: none; } }
+
+/* A carpenter’s drafting surface, with the name as the only invitation. */
+.atelier-entrance-root { position: relative; height: 100dvh; overflow: hidden; background: #f4eee5; }
+.atelier-tree-scene { position: absolute; inset: 0; transform-origin: 50% 58%; }
+.atelier-welcome { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 4%; overflow: hidden; isolation: isolate; color: #4f3526; background-color: #f4eee5; background-image: linear-gradient(#76543d09 1px, transparent 1px), linear-gradient(90deg, #76543d09 1px, transparent 1px), linear-gradient(#76543d0b 1px, transparent 1px), linear-gradient(90deg, #76543d0b 1px, transparent 1px); background-size: 28px 28px, 28px 28px, 140px 140px, 140px 140px; }
+.atelier-welcome::before { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(ellipse at 50% 45%, #fffaf266, transparent 70%); }
+.atelier-welcome-center { position: relative; z-index: 1; text-align: center; }
+.atelier-welcome-enter { display: inline-flex; align-items: center; cursor: pointer; padding: 10px 18px 18px; }
+.atelier-welcome-wordmark { font-family: var(--font-serif); font-size: clamp(120px, 31vw, 440px); line-height: 1; font-weight: 400; letter-spacing: -.075em; padding-right: .055em; transition: color .3s; }
+.atelier-welcome-enter:hover .atelier-welcome-wordmark { color: #76543d; }
+.atelier-welcome-enter:focus-visible { outline: none; }
+.atelier-welcome-enter:focus-visible .atelier-welcome-wordmark { text-decoration: underline; text-decoration-color: #99734c88; text-decoration-thickness: 1px; text-underline-offset: .09em; }
+.atelier-welcome-enter:disabled { cursor: default; }
+@media (max-width: 600px) {
+  .atelier-welcome { padding: 6%; background-size: 22px 22px, 22px 22px, 110px 110px, 110px 110px; }
+  .atelier-welcome-enter { padding-inline: 0; }
+  .atelier-welcome-wordmark { font-size: clamp(85px, 38vw, 190px); }
+}
+@media (max-height: 500px) {
+  .atelier-welcome-wordmark { font-size: min(31vw, 60dvh); }
+}
+@media (prefers-reduced-motion: reduce) { .atelier-welcome-wordmark { transition: none; } }

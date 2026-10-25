@@ -156,6 +156,61 @@ describe("Collection branch tree", () => {
     expect(screen.queryByRole("button", { name: design.name })).not.toBeInTheDocument();
   });
 
+  it("pages saved designs through three fixed branches beside the build branch", async () => {
+    const designs = Array.from({ length: 6 }, (_, i) =>
+      labToSpec(BLANK, `Saved chair ${i + 1}`, new Date(5000 + i)),
+    );
+    designs.forEach(saveDesign);
+    const onOpen = vi.fn();
+    const { container } = render(<Chandelier onOpen={onOpen} />);
+    fireEvent.click(screen.getByRole("button", { name: "Chairs" }));
+    fireEvent.click(screen.getByRole("button", { name: "Your own" }));
+    const scene = screen.getByRole("group", { name: /^Atelier trunk/ });
+    const positions = () =>
+      [...container.querySelectorAll('.node-leaf[aria-hidden="false"]')].map((node) =>
+        node.getAttribute("transform"),
+      );
+    expect(positions()).toHaveLength(4);
+    expect(screen.getByRole("button", { name: "Component lab" })).toBeInTheDocument();
+    for (const n of [6, 5, 4])
+      expect(screen.getByRole("button", { name: `Saved chair ${n}` })).toBeInTheDocument();
+    for (const n of [3, 2, 1])
+      expect(screen.queryByRole("button", { name: `Saved chair ${n}` })).not.toBeInTheDocument();
+    const originalPositions = positions();
+    const originalView = scene.getAttribute("viewBox");
+    fireEvent.click(screen.getByRole("button", { name: "Next saved designs" }));
+    expect(positions()).toEqual(originalPositions);
+    expect(scene).toHaveAttribute("viewBox", originalView!);
+    for (const n of [3, 2, 1])
+      expect(screen.getByRole("button", { name: `Saved chair ${n}` })).toBeInTheDocument();
+    for (const n of [6, 5, 4])
+      expect(screen.queryByRole("button", { name: `Saved chair ${n}` })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Saved chair 1" }));
+    expect(await screen.findByTestId("furniture-model-preview")).toHaveTextContent(
+      `spec:${designs[0]!.id}`,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Set this piece on the bench" }));
+    expect(onOpen).toHaveBeenCalledWith(`spec:${designs[0]!.id}`);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    fireEvent.click(screen.getByRole("button", { name: "Previous saved designs" }));
+    expect(positions()).toEqual(originalPositions);
+    expect(screen.getByRole("button", { name: "Saved chair 6" })).toBeInTheDocument();
+  });
+
+  it("rotates the trunk geometry with the overview and omits its junction marker", () => {
+    const { container } = render(<Chandelier onOpen={vi.fn()} />);
+    const trunk = () =>
+      [...container.querySelectorAll(".tree-trunk path")]
+        .map((path) => path.getAttribute("d"))
+        .join(" ");
+    const initial = trunk();
+    expect(initial).not.toBe("");
+    expect(screen.queryByRole("button", { name: "Atelier collection" })).not.toBeInTheDocument();
+    expect(container.querySelector("radialGradient")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Next branch" }));
+    expect(trunk()).not.toBe(initial);
+  });
+
   it("returns directly to an earlier category or style at its original zoom", () => {
     render(<Chandelier onOpen={vi.fn()} />);
     const scene = screen.getByRole("group", { name: /^Atelier trunk/ });

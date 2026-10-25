@@ -12,7 +12,7 @@ AI features need a Lovable AI Gateway key (`LOVABLE_API_KEY`) — automatic on L
 ## Invariants (do not break)
 1. Numbers come only from pure modules in `src/lib/chair/*`, `lab.ts`, `assembly.ts`. 3D, 2D, UI and mentor all consume them.
 2. Component Lab 3D (`LabModel.tsx`) is generated from the exact `LabDesign` passed to `evaluateLab`.
-3. Mentor answers only from `src/lib/knowledge` + computed observations; never invent sources; no external links (Wikipedia/YouTube removed on purpose).
+3. Mentor answers only from `src/lib/knowledge` + computed observations; never invent sources; cite only the approved source titles and URLs in the knowledge library (no Wikipedia/YouTube sources).
 4. Instruction is in-app (`techniques.ts`), not links.
 5. Persistence only through `StudioRepository`.
 6. `/workshop` stays `ssr: false`; never statically import WebGL modules into SSR routes.

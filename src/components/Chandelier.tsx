@@ -3,7 +3,6 @@ import {
   lazy,
   Suspense,
   useEffect,
-  useId,
   useMemo,
   useRef,
   useState,
@@ -12,7 +11,7 @@ import {
 import { ClientOnly } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { animate, useReducedMotion } from "framer-motion";
-import { ArrowLeft, ArrowRight, MoveHorizontal } from "lucide-react";
+import { ArrowLeft, ArrowRight, ChevronLeft, ChevronRight, MoveHorizontal } from "lucide-react";
 import { loadSaved } from "@/lib/furniture/saved";
 import type { FurnitureSpec } from "@/lib/furniture/spec";
 import type { PieceId } from "@/lib/storage/chairProgress";
@@ -145,10 +144,12 @@ const CATEGORIES: { name: string; description: string; studies: Study[] }[] = [
 ];
 const TURN = Math.PI / 2;
 const VIEW = { w: 1000, h: 610 };
+const OVERVIEW = [60, 50, 880, 560];
 type Point = { x: number; y: number; z: number };
 type Kind = "root" | "category" | "style" | "leaf";
 type TreeNode = {
   branch?: number;
+  slot?: string;
   id: string;
   kind: Kind;
   label: string;
@@ -157,6 +158,67 @@ type TreeNode = {
   category?: number;
   study?: Study;
 };
+
+function projectPoint(p: Point, rotation: number): Point {
+  const x = p.x * Math.cos(rotation) + p.z * Math.sin(rotation);
+  const z = -p.x * Math.sin(rotation) + p.z * Math.cos(rotation);
+  return { x: 500 + (x * 1100) / (1100 - z * 0.28), y: 380 - p.y * 0.88 + z * 0.12, z };
+}
+
+/** A small angular timber volume: its bends, faces and grain turn with the canopy. */
+function trunkMesh(rotation: number) {
+  const levels = [
+    { x: -9, y: -190, z: 6, r: 45 },
+    { x: -15, y: -165, z: 2, r: 42 },
+    { x: -4, y: -132, z: -5, r: 37 },
+    { x: -8, y: -99, z: -2, r: 33 },
+    { x: 1, y: -66, z: 7, r: 30 },
+    { x: -3, y: -31, z: 3, r: 26 },
+    { x: 0, y: 0, z: 0, r: 22 },
+  ];
+  const sides = 10;
+  const rings = levels.map((p) =>
+    Array.from({ length: sides }, (_, i) => {
+      const angle = (i * Math.PI * 2) / sides;
+      return projectPoint(
+        { x: p.x + Math.cos(angle) * p.r, y: p.y, z: p.z + Math.sin(angle) * p.r * 0.72 },
+        rotation,
+      );
+    }),
+  );
+  const colors = [
+    "#76543d",
+    "#705039",
+    "#79563e",
+    "#6b4b35",
+    "#806047",
+    "#76543d",
+    "#6e4e38",
+    "#7b5940",
+    "#72503a",
+    "#826047",
+  ];
+  const faces = rings
+    .slice(1)
+    .flatMap((ring, level) =>
+      ring.map((point, i) => {
+        const next = (i + 1) % sides;
+        const vertices = [rings[level]![i]!, rings[level]![next]!, ring[next]!, point];
+        return {
+          id: `${level}-${i}`,
+          depth: vertices.reduce((sum, p) => sum + p.z, 0) / 4,
+          d: `M${vertices.map((p) => `${p.x.toFixed(3)},${p.y.toFixed(3)}`).join(" L")}Z`,
+          fill: colors[i]!,
+        };
+      }),
+    )
+    .sort((a, b) => a.depth - b.depth);
+  const grain = Array.from({ length: sides }, (_, i) => ({
+    front: Math.sin((i * Math.PI * 2) / sides - rotation) > 0.2,
+    d: `M${rings.map((ring) => `${ring[i]!.x.toFixed(3)},${ring[i]!.y.toFixed(3)}`).join(" L")}`,
+  })).filter((line) => line.front);
+  return { faces, grain };
+}
 
 const smooth = (from: number, to: number, value: number) => {
   const t = Math.max(0, Math.min(1, (value - from) / (to - from)));
@@ -295,6 +357,7 @@ function NodeMark({
         />
       )}
       <text
+        key={node.label}
         className="node-full-label"
         y={leaf ? 19 : 23}
         textAnchor="middle"
@@ -304,7 +367,13 @@ function NodeMark({
         {node.label}
       </text>
       {leaf && (
-        <text className="node-mobile-label" y="19" textAnchor="middle" fill="var(--branch-bark)">
+        <text
+          key={node.label}
+          className="node-mobile-label"
+          y="19"
+          textAnchor="middle"
+          fill="var(--branch-bark)"
+        >
           {node.label}
         </text>
       )}
@@ -375,9 +444,10 @@ export function Chandelier({
     [savedDesigns],
   );
   const reduce = useReducedMotion();
-  const trunkId = useId();
+  const [ownPages, setOwnPages] = useState<Record<string, number>>({});
   const [step, setStep] = useState(0);
   const [rotation, setRotation] = useState(0);
+  const trunk = useMemo(() => trunkMesh(rotation), [rotation]);
   const [studyId, setStudyId] = useState<string | null>(null);
   const [popupId, setPopupId] = useState<string | null>(null);
   const [focusedNode, setFocusedNode] = useState<string | null>(null);
@@ -386,8 +456,8 @@ export function Chandelier({
     progress: 1,
   });
   const [pendingPopup, setPendingPopup] = useState<string | null>(null);
-  const [viewBox, setViewBox] = useState([0, 0, VIEW.w, VIEW.h]);
-  const camera = useRef([0, 0, VIEW.w, VIEW.h]);
+  const [viewBox, setViewBox] = useState([...OVERVIEW]);
+  const camera = useRef([...OVERVIEW]);
   const resetZoom = () => {
     setFocusedNode(null);
     setPendingPopup(null);
@@ -490,7 +560,7 @@ export function Chandelier({
       const groups = [...byStyle.values()];
       groups.forEach((studies, j) => {
         const first = studies[0]!;
-        const styleId = `style-${first.id}`;
+        const styleId = first.style === "Your own" ? `style-own-${i}` : `style-${first.id}`;
         const spread = (j - (groups.length - 1) / 2) * 168;
         const reach = 190 + [-16, 22, -8, 12][j % 4]!;
         const point = {
@@ -513,10 +583,21 @@ export function Chandelier({
           branch: i,
           study: first,
         });
-        studies.forEach((study, k) => {
-          const fan = (k - (studies.length - 1) / 2) * 160;
+        const own = first.style === "Your own";
+        const saved = studies.filter((study) => study.saved);
+        const page = Math.min(ownPages[c.name] ?? 0, Math.max(0, Math.ceil(saved.length / 3) - 1));
+        const displayed = own
+          ? [
+              ...studies.filter((study) => !study.saved).slice(0, 1),
+              ...saved.slice(page * 3, page * 3 + 3),
+            ]
+          : studies;
+        const slots = own && saved.length ? 4 : displayed.length;
+        displayed.forEach((study, k) => {
+          const fan = (k - (slots - 1) / 2) * 160;
           nodes.push({
             id: study.id,
+            slot: own ? `${styleId}-slot-${k}` : study.id,
             kind: "leaf",
             label: study.title,
             parent: styleId,
@@ -527,20 +608,14 @@ export function Chandelier({
               y:
                 point.y +
                 (extension.y / extensionLength) * 155 +
-                (studies.length > 1 ? ((k % 3) - 1) * 12 : 0),
+                (slots > 1 ? ((k % 3) - 1) * 12 : 0),
               z: point.z + (extension.z / extensionLength) * 155 + tangent.z * fan,
             },
           });
         });
       });
     });
-    const project = (p: Point) => {
-      const x = p.x * Math.cos(rotation) + p.z * Math.sin(rotation);
-      const z = -p.x * Math.sin(rotation) + p.z * Math.cos(rotation);
-      const perspective = 1100 / (1100 - z * 0.28);
-      return { x: 500 + x * perspective, y: 380 - p.y * 0.88 + z * 0.12, z };
-    };
-    const projected = nodes.map((n) => ({ ...n, screen: project(n.point) }));
+    const projected = nodes.map((n) => ({ ...n, screen: projectPoint(n.point, rotation) }));
     const categories = projected.filter((n) => n.kind === "category");
     return projected.map((n) => {
       if (n.kind === "root") return { ...n, opacity: 1 };
@@ -559,7 +634,7 @@ export function Chandelier({
       const depth = 0.5 + 0.5 * smooth(-1, 1, front);
       return { ...n, opacity: depth * (1 - occlusion) };
     });
-  }, [rotation, collections]);
+  }, [rotation, collections, ownPages]);
   const byId = new Map(graph.map((n) => [n.id, n]));
   useEffect(() => {
     if (!focusedNode || graph.some((node) => node.id === focusedNode)) return;
@@ -621,10 +696,10 @@ export function Chandelier({
   const y0 = bounds.length ? Math.min(...bounds.map((p) => p.y)) - 56 : 0;
   const x1 = bounds.length ? Math.max(...bounds.map((p) => p.x)) + 48 : VIEW.w;
   const y1 = bounds.length ? Math.max(...bounds.map((p) => p.y)) + 48 : VIEW.h;
-  const width = focused ? Math.max(300, x1 - x0) : VIEW.w;
-  const height = focused ? Math.max(220, y1 - y0) : VIEW.h;
-  const cx = focused ? x0 - (width - (x1 - x0)) / 2 : 0;
-  const cy = focused ? y0 - (height - (y1 - y0)) / 2 : 0;
+  const width = focused ? Math.max(300, x1 - x0) : OVERVIEW[2]!;
+  const height = focused ? Math.max(220, y1 - y0) : OVERVIEW[3]!;
+  const cx = focused ? x0 - (width - (x1 - x0)) / 2 : OVERVIEW[0]!;
+  const cy = focused ? y0 - (height - (y1 - y0)) / 2 : OVERVIEW[1]!;
   const goToNode = (id: string) => {
     setPendingPopup(null);
     const node = byId.get(id);
@@ -673,6 +748,24 @@ export function Chandelier({
     );
     return () => window.clearTimeout(timer);
   }, [pendingPopup, reduce]);
+
+  const ownStyle =
+    focused?.kind === "style" && focused.label === "Your own"
+      ? focused
+      : focused?.kind === "leaf"
+        ? byId.get(focused.parent!)
+        : undefined;
+  const ownDesigns = category.studies.filter((study) => study.saved);
+  const ownPageCount = Math.ceil(ownDesigns.length / 3);
+  const ownPage = Math.min(ownPages[category.name] ?? 0, Math.max(0, ownPageCount - 1));
+  const pageDesigns = (direction: number) => {
+    if (!ownStyle || ownPageCount < 2) return;
+    goToNode(ownStyle.id);
+    setOwnPages((pages) => ({
+      ...pages,
+      [category.name]: (ownPage + direction + ownPageCount) % ownPageCount,
+    }));
+  };
 
   return (
     <section
@@ -755,91 +848,21 @@ export function Chandelier({
         >
           <g fill="var(--branch-bark)">
             {(() => {
-              const root = byId.get("root")!;
-              const trunk = branchGeometry(
-                { x: root.screen.x, y: 565, z: 0 },
-                root.screen,
-                124,
-                58,
-                11,
-              );
-              const hollowX = root.screen.x - 8;
-              const hollowY = root.screen.y + 94;
               return (
-                <g className="tree-trunk">
-                  <defs>
-                    <linearGradient id={`${trunkId}-wood`} x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0" stopColor="#493023" />
-                      <stop offset=".22" stopColor="#76543d" />
-                      <stop offset=".48" stopColor="#997354" />
-                      <stop offset=".72" stopColor="#79543b" />
-                      <stop offset="1" stopColor="#4c3223" />
-                    </linearGradient>
-                    <radialGradient id={`${trunkId}-hollow`} cx=".6" cy=".8" r=".9">
-                      <stop stopColor="#503320" />
-                      <stop offset=".5" stopColor="#291a12" />
-                      <stop offset="1" stopColor="#120c08" />
-                    </radialGradient>
-                    <clipPath id={`${trunkId}-bark`}>
-                      <path d={trunk.silhouette} />
-                    </clipPath>
-                  </defs>
-                  <path d={trunk.silhouette} fill={`url(#${trunkId}-wood)`} />
-                  <path d={trunk.facet} fill="#302014" opacity=".28" />
-                  <g clipPath={`url(#${trunkId}-bark)`} fill="none" strokeLinejoin="miter">
-                    {[-43, -25, -9, 17, 36].map((offset, i) => {
-                      const x = root.screen.x + offset;
-                      const y = root.screen.y;
-                      const d = `M${x - 6} 570 l-5 -24 7 -21 -4 -26 6 -22 -2 -26 4 -24 L${x + (i % 2 ? 5 : -4)} ${y - 12}`;
-                      return (
-                        <g key={offset}>
-                          <path
-                            d={d}
-                            stroke="#392519"
-                            strokeWidth={i % 2 ? 2.1 : 1.3}
-                            opacity=".55"
-                          />
-                          <path
-                            d={d}
-                            transform="translate(2 0)"
-                            stroke="#c29a70"
-                            strokeWidth=".8"
-                            opacity=".45"
-                          />
-                        </g>
-                      );
-                    })}
-                    <g transform={`translate(${hollowX} ${hollowY})`}>
-                      <path
-                        d="M-10-51 -22-38 -27-18 -28 9 -18 39 -5 55 M8-51 24-33 29-7 27 22 15 43 2 55"
-                        stroke="#452d20"
-                        strokeWidth="1.4"
-                        opacity=".8"
-                      />
-                      <path
-                        d="M-2-37C-17-35-26-18-24 2L-20 23Q-15 39 0 40 18 38 23 19L25-5Q24-24 10-34Z"
-                        fill="#513623"
-                        stroke="#b48a5f"
-                        strokeWidth="2.4"
-                      />
-                      <path
-                        d="M0-29Q-19-26-18-3L-15 18Q-11 31 1 32 16 28 18 11L19-8Q17-25 7-29Z"
-                        fill={`url(#${trunkId}-hollow)`}
-                        stroke="#382316"
-                        strokeWidth="2"
-                      />
-                      <path
-                        d="M-17 24Q-2 42 16 25"
-                        stroke="#c19a6d"
-                        strokeWidth="1.5"
-                        opacity=".8"
-                      />
-                      <path d="M-19-16Q-23 5-15 20" stroke="#301e15" strokeWidth="2" opacity=".7" />
-                    </g>
-                  </g>
-                  <text className="tree-trunk-title" x={root.screen.x} y="602" textAnchor="middle">
-                    Atelier
-                  </text>
+                <g className="tree-trunk" aria-hidden="true">
+                  {trunk.faces.map((face) => (
+                    <path key={face.id} d={face.d} fill={face.fill} />
+                  ))}
+                  {trunk.grain.map((line, i) => (
+                    <path
+                      key={i}
+                      d={line.d}
+                      fill="none"
+                      stroke="#b5906b"
+                      strokeWidth=".7"
+                      opacity=".28"
+                    />
+                  ))}
                 </g>
               );
             })()}
@@ -869,7 +892,10 @@ export function Chandelier({
                   incoming,
                 );
                 return (
-                  <g key={n.id} opacity={Math.min(1, n.opacity * 1.2) * (inCanopy(n) ? 1 : 0.42)}>
+                  <g
+                    key={n.slot ?? n.id}
+                    opacity={Math.min(1, n.opacity * 1.2) * (inCanopy(n) ? 1 : 0.42)}
+                  >
                     <path d={wood.silhouette} />
                     <path d={wood.facet} fill="#30251f" opacity="0.16" />
                     <path
@@ -885,6 +911,7 @@ export function Chandelier({
               })}
           </g>
           {[...graph]
+            .filter((n) => n.kind !== "root")
             .sort((a, b) => a.screen.z - b.screen.z)
             .map((n) => {
               const open = revealed(n);
@@ -903,8 +930,8 @@ export function Chandelier({
               };
               return (
                 <g
-                  key={n.id}
-                  className={`branch-node node-${n.kind} ${active ? "is-selected" : ""} ${canopy ? "" : "is-dim"}`}
+                  key={n.slot ?? n.id}
+                  className={`branch-node node-${n.kind} ${n.study?.saved ? "node-saved" : ""} ${active ? "is-selected" : ""} ${canopy ? "" : "is-dim"}`}
                   transform={`translate(${n.screen.x} ${n.screen.y})`}
                   role="button"
                   tabIndex={interactive && visible ? 0 : -1}
@@ -969,6 +996,23 @@ export function Chandelier({
             ))}
           </nav>
         </div>
+      )}
+      {ownStyle?.label === "Your own" && ownPageCount > 1 && (
+        <nav className="own-design-pagination" aria-label="Browse your saved designs">
+          <button type="button" onClick={() => pageDesigns(-1)} aria-label="Previous saved designs">
+            <ChevronLeft size={15} />
+          </button>
+          <span>Your designs</span>
+          <button type="button" onClick={() => pageDesigns(1)} aria-label="Next saved designs">
+            <ChevronRight size={15} />
+          </button>
+          <span className="sr-only" aria-live="polite">
+            {ownDesigns
+              .slice(ownPage * 3, ownPage * 3 + 3)
+              .map((study) => study.title)
+              .join(", ")}
+          </span>
+        </nav>
       )}
       <nav className="branch-navigation" aria-label="Explore furniture branches">
         <button type="button" onClick={() => turn(-1)} aria-label="Previous branch">
