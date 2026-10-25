@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowRight, Check, FileJson, Maximize2, Minimize2, Scan, ScanEye, X } from "lucide-react";
+import { ArrowRight, Check, FileJson, Maximize2, Minimize2, Scan, ScanEye, Wrench, X } from "lucide-react";
 import { labToSpec } from "@/lib/furniture/fromLab";
 import { saveDesign } from "@/lib/furniture/saved";
 import { SETTINGS, type Setting } from "@/lib/weather";
@@ -17,6 +17,10 @@ import { ProvenanceBadge } from "./ProvenanceBadge";
 import { useWorkshop } from "./store";
 import { ARModal } from "./ARModal";
 import { makeChairARLink } from "@/lib/furniture/chairARLink";
+import { BriefNote, DescribeBox } from "./DescribeBox";
+import { FixOptions } from "./FixOptions";
+import { findFixes, type Fix, type Lockable } from "@/lib/compromise";
+import type { Brief } from "@/lib/brief";
 
 const BASES: { id: Base; label: string }[] = [
   { id: "four", label: "4 straight legs" },
@@ -42,7 +46,21 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
   const set = <K extends keyof LabDesign>(k: K, v: LabDesign[K]) => { mark("pick"); setD((x) => ({ ...x, [k]: v })); };
   const [knee, setKnee] = useState<number | "">("");
   const [setting, setSetting] = useState<Setting>("indoor");
-  const results = evaluateLab(d, knee === "" ? { setting } : { poplitealHeight: knee, setting });
+  const [brief, setBrief] = useState<{ brief: Brief; source: "ai" | "keywords"; note?: string } | null>(null);
+  const applyBrief = (b: Brief, source: "ai" | "keywords", note?: string) => {
+    mark("pick");
+    setD(b.design);
+    setSetting(b.setting);
+    setBrief({ brief: b, source, note });
+    setTested(true);
+  };
+  const user = useMemo(() => (knee === "" ? { setting } : { poplitealHeight: knee, setting }), [knee, setting]);
+  const results = evaluateLab(d, user);
+  const [locked, setLocked] = useState<Lockable[]>([]);
+  const [fixOpen, setFixOpen] = useState(false);
+  const failing = results.some((r) => r.level === "bad");
+  const fixes = useMemo(() => (tested && failing ? findFixes(d, user, locked) : []), [tested, failing, d, user, locked]);
+  const applyFix = (f: Fix) => { mark("pick"); setD(f.design); setFixOpen(false); };
   const tip = labTipping(d);
   const tips = tested && results.some((r) => r.area === "Stability" && r.level === "bad");
   return (
@@ -74,6 +92,9 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
 
       {panel && (
         <div className="absolute z-10 left-3 top-40 bottom-3 w-[min(20rem,calc(100vw-1.5rem))] space-y-4 overflow-y-auto rounded-xl border hairline bg-card/95 p-4 shadow-sm backdrop-blur sm:left-5 sm:top-24 sm:bottom-5">
+          <DescribeBox current={d} setting={setting} onDesign={applyBrief} />
+          {brief && <BriefNote {...brief} onClose={() => setBrief(null)} />}
+          <div className="eyebrow pt-1">Or pick the parts yourself</div>
           <Pick title="Base" hint="What the chair stands on." opts={BASES} v={d.base} on={(v) => set("base", v)} />
           <Pick title="Back" hint="What you lean on. No back = a stool." opts={BACKS} v={d.back} on={(v) => set("back", v)} />
           <Pick title="Joints" hint="How the legs lock into the seat. Mortise & tenon is strongest, screws weakest." opts={Object.entries(JOINT_TYPES).map(([id, j]) => ({ id: id as LabDesign["joint"], label: j.name }))} v={d.joint} on={(v) => set("joint", v)} />
@@ -96,7 +117,7 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
             <button onClick={() => { mark("test"); setTested(true); }} className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">Test this chair</button>
             <button onClick={() => { setD(BLANK); setTested(false); }} className="rounded-md border hairline px-4 py-2 text-sm">Clear bench</button>
           </div>
-          <SaveDesign d={d} />
+          <SaveDesign key={brief?.brief.name ?? "mine"} d={d} suggested={brief?.brief.name} />
           <details className="rounded-md border hairline p-2" onToggle={(e) => { if ((e.target as HTMLDetailsElement).open) mark("math"); }}>
             <summary className="cursor-pointer text-xs text-muted-foreground">Show the math — side view, tipping, leg bending, your knee height</summary>
             <div className="mt-3 space-y-4">
@@ -121,14 +142,17 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
       )}
 
       {tested && (
-        <ResultsCard results={results} note={WOODS[d.wood].note} tips={tips} onClose={() => setTested(false)} />
+        <ResultsCard results={results} note={WOODS[d.wood].note} tips={tips} onClose={() => setTested(false)} fixCount={failing ? fixes.length : -1} onFix={() => setFixOpen(true)} />
+      )}
+      {fixOpen && tested && failing && (
+        <FixOptions d={d} user={user} fixes={fixes} locked={locked} onLock={(k) => setLocked((l) => (l.includes(k) ? l.filter((x) => x !== k) : [...l, k]))} onUse={applyFix} onClose={() => setFixOpen(false)} />
       )}
       {arOpen && <ARModal spec={arSpec} shareUrl={makeChairARLink(window.location.href, "lab", d)} onClose={() => setAROpen(false)} />}
     </main>
   );
 }
 
-function ResultsCard({ results, note, tips, onClose }: { results: ReturnType<typeof evaluateLab>; note: string; tips: boolean; onClose: () => void }) {
+function ResultsCard({ results, note, tips, onClose, fixCount, onFix }: { results: ReturnType<typeof evaluateLab>; note: string; tips: boolean; onClose: () => void; fixCount: number; onFix: () => void }) {
   const [min, setMin] = useState(false);
   const [beginner] = useBeginner();
   const counts = { good: 0, warn: 0, bad: 0 };
@@ -147,6 +171,12 @@ function ResultsCard({ results, note, tips, onClose }: { results: ReturnType<typ
       </div>
       {!min && (
         <div className="mt-2 max-h-[50vh] space-y-2 overflow-y-auto">
+          {fixCount >= 0 && (
+            <button onClick={onFix} className="flex w-full items-center justify-between gap-2 rounded-md bg-teal px-3 py-2 text-left text-sm text-accent-foreground">
+              <span className="flex items-center gap-1.5"><Wrench className="h-4 w-4" /> {fixCount > 1 ? "2 ways to fix this" : fixCount === 1 ? "1 way to fix this" : "Try to fix this"}</span>
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          )}
           {tips && <p className="text-xs text-alert">The model is tilted back because the static tipping check says a gentle lean tips it.</p>}
           {results.map((r, k) => (
             <ResultRow key={k} r={r} beginner={beginner} badge={<ProvenanceBadge kind={r.basis} topic={r.area === "Weather" ? "weather" : "lab"} />} />
@@ -200,9 +230,9 @@ function SideView({ d }: { d: LabDesign }) {
 }
 
 /** Save the bench design as a furniture data file: it then appears on the home screen as its own chair. */
-function SaveDesign({ d }: { d: LabDesign }) {
+function SaveDesign({ d, suggested }: { d: LabDesign; suggested?: string }) {
   const navigate = useNavigate();
-  const [name, setName] = useState("My chair");
+  const [name, setName] = useState(suggested ?? "My chair");
   const [saved, setSaved] = useState<{ id: string; key: string } | null>(null);
   const key = JSON.stringify(d) + name;
   const fresh = saved?.key === key;
