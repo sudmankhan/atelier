@@ -16,10 +16,14 @@ export const LAB_RANGES = {
   backHeight: [15, 70],
 } as const satisfies Record<string, readonly [number, number]>;
 
-/** A sound starting chair: the AI and the keyword reader change it rather than starting from a flimsy blank. */
+/**
+ * A sound starting chair that passes every test: the AI and the keyword reader change it rather than starting
+ * from a flimsy blank. The legs spread 8° because in the tipping model a straight-legged chair with a back
+ * tips at under half the reference lean.
+ */
 export const START: LabDesign = {
   base: "four", back: "slats", joint: "mt", wood: "oak",
-  seatHeight: 45, seatDepth: 42, seatWidth: 44, backAngle: 102, backHeight: 40, legThickness: 3.6, splay: 0, stretchers: true,
+  seatHeight: 45, seatDepth: 46, seatWidth: 44, backAngle: 102, backHeight: 40, legThickness: 3.6, splay: 8, stretchers: true,
 };
 
 const num = z.number().finite().nullable().optional();

@@ -73,3 +73,9 @@ describe("keyword fallback (no AI)", () => {
     expect(heuristicBrief("a laid back reading chair").design.backAngle).toBe(110);
   });
 });
+
+describe("the starting chair", () => {
+  it("passes every test, so a described chair starts sound", () => {
+    expect(evaluateLab(START).filter((r) => r.level === "bad")).toEqual([]);
+  });
+});
