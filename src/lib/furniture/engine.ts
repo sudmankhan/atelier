@@ -5,7 +5,7 @@ import type { FurnitureSpec, PartSpec } from "./spec";
 import { roughOf, type CutRow } from "@/lib/chair/shop";
 import { density12 } from "@/lib/chair/woodProperties";
 import { DEFAULT_LOADS } from "@/lib/chair/loads";
-import { combineWeights, defaultComZ, leverArm, tippingStatics, type StaticsResult } from "@/lib/statics";
+import { DEFAULT_PUSH_HEIGHT_CM, combineWeights, defaultComZ, leverArm, tippingStatics, type StaticsResult } from "@/lib/statics";
 import { BLANK, evaluateLab, type LabDesign, type LabResult } from "@/lib/lab";
 import { allocate, type StockBoard } from "@/lib/chair/allocate";
 
@@ -44,13 +44,19 @@ export function specGeometry(s: FurnitureSpec) {
   const seatTop = seatAt[1] + seat.size[2] / 2;
   const seatDepth = seat.size[1], seatWidth = seat.size[0];
   const ends = s.parts.flatMap((p) => (p.sticks ?? []).flatMap(([a, b]) => [a, b]));
-  const feet = s.parts.filter((p) => p.role === "leg" || p.role === "post").flatMap((p) => (p.sticks ?? []).map(([a, b]) => (a[1] < b[1] ? a : b)));
-  const legT = Math.min(...s.parts.filter((p) => p.role === "leg" || p.role === "post").map((p) => Math.min(p.size[1], p.size[2])));
-  // Rear pivot: the back edge of the rearmost foot.
-  const rearFootZ = Math.min(...feet.map((f) => f[2])) - legT / 2;
+  // Feet are stick ends that touch the floor; only parts with feet count as legs for thickness.
+  const grounded = s.parts.filter((p) => (p.role === "leg" || p.role === "post") && (p.sticks ?? []).some(([a, b]) => Math.min(a[1], b[1]) <= 1));
+  const feet = grounded.flatMap((p) => (p.sticks ?? []).flatMap(([a, b]) => [a, b]).filter((e) => e[1] <= 1));
+  const legT = Math.min(...grounded.map((p) => Math.min(p.size[1], p.size[2])));
+  // Rear pivot: the centre of the rearmost foot (same convention as the Lab's labRearPivotZ).
+  const rearFootZ = Math.min(...feet.map((f) => f[2]));
   const top = Math.max(...ends.map((e) => e[1]), seatTop);
-  const posts = s.parts.filter((p) => p.role === "post").flatMap((p) => p.sticks ?? []);
-  const recline = posts.length ? (Math.atan2(Math.abs(posts[0]![1][2] - posts[0]![0][2]), Math.abs(posts[0]![1][1] - posts[0]![0][1])) * 180) / Math.PI : 0;
+  // Recline: the lean of the back posts, or of the tallest upright back member above the seat.
+  const upright = ([a, b]: [V3, V3]) => Math.abs(b[1] - a[1]) > 15 && Math.max(a[1], b[1]) > seatTop + 5;
+  const posts = s.parts.filter((p) => p.role === "post").flatMap((p) => p.sticks ?? []).filter(upright);
+  const backs = s.parts.filter((p) => p.role === "back").flatMap((p) => p.sticks ?? []).filter(upright);
+  const lean = posts[0] ?? backs[0];
+  const recline = lean ? (Math.atan2(Math.abs(lean[1][2] - lean[0][2]), Math.abs(lean[1][1] - lean[0][1])) * 180) / Math.PI : 0;
   const hasBack = s.parts.some((p) => p.role === "back");
   const hasStretchers = s.parts.some((p) => p.role === "stretcher");
   return { seatTop: r1(seatTop), seatDepth, seatWidth, seatCentreZ: seatAt[2], rearFootZ: r1(rearFootZ), top: r1(top), legT, recline: r1(recline), hasBack, hasStretchers };
@@ -71,9 +77,11 @@ export function specTipping(s: FurnitureSpec): { result: StaticsResult; pushHeig
   const seatRear = g.seatCentreZ - g.seatDepth / 2, seatFront = g.seatCentreZ + g.seatDepth / 2;
   const occupantZ = defaultComZ(seatRear, seatFront, DEFAULT_LOADS.comFraction, g.recline);
   const both = combineWeights({ W: DEFAULT_LOADS.seatN, z: occupantZ }, { W: m.N, z: m.comZ });
-  const r = tippingStatics({ W: both.W, d: leverArm(both.z, g.rearFootZ), F: DEFAULT_LOADS.leanN, h: g.top / 100 });
+  // With a back you'd push on its top; a stool gets the app's standard push height, as in the Lab.
+  const pushHeightCm = g.hasBack ? g.top : DEFAULT_PUSH_HEIGHT_CM;
+  const r = tippingStatics({ W: both.W, d: leverArm(both.z, g.rearFootZ), F: DEFAULT_LOADS.leanN, h: pushHeightCm / 100 });
   if (!r.ok) throw new Error(r.error);
-  return { result: r, pushHeightCm: g.top, occupantZ, chairKg: m.kg };
+  return { result: r, pushHeightCm, occupantZ, chairKg: m.kg };
 }
 
 /** The file read as a Component Lab design, so joint, part and comfort checks reuse the Lab's rules. */
@@ -81,8 +89,8 @@ export function specAsLab(s: FurnitureSpec): LabDesign {
   const g = specGeometry(s);
   return {
     ...BLANK,
-    base: "four",
-    back: g.hasBack ? "slats" : "none",
+    base: s.construction?.base ?? "four",
+    back: g.hasBack ? (s.construction?.back ?? "slats") : "none",
     joint: s.joint,
     wood: s.wood,
     seatHeight: g.seatTop,
@@ -90,8 +98,8 @@ export function specAsLab(s: FurnitureSpec): LabDesign {
     seatWidth: g.seatWidth,
     backAngle: r1(90 + g.recline),
     backHeight: r1(g.top - g.seatTop),
-    legThickness: g.legT,
-    splay: 0,
+    legThickness: s.construction?.legThickness ?? g.legT,
+    splay: s.construction?.splay ?? 0,
     stretchers: g.hasStretchers,
   };
 }
@@ -101,7 +109,7 @@ export function specResults(s: FurnitureSpec, user: { poplitealHeight?: number }
   const tip = specTipping(s);
   const thr = tip.result.thresholdF ?? 0;
   const L = DEFAULT_LOADS.leanN;
-  const why = `Sitter + ${tip.chairKg} kg chair (parts × ${s.wood} density), push ${Math.round(tip.pushHeightCm)} cm up at the top of the back.`;
+  const why = `Sitter + ${tip.chairKg} kg chair (parts × ${s.wood} density), push ${Math.round(tip.pushHeightCm)} cm up${specGeometry(s).hasBack ? " at the top of the back" : ""}.`;
   const stability: LabResult =
     thr < L / 2
       ? { area: "Stability", level: "bad", basis: "assumption", title: thr <= 0 ? "Tips with no push at all" : `Tips at only ${Math.round(thr)} N of lean`, detail: `${why} A gentle lean tips it.` }
@@ -132,4 +140,69 @@ export function specIssues(s: FurnitureSpec): string[] {
     }
   }
   return out;
+}
+
+// ---------- Resizing ----------
+// Any file chair can be stretched to new overall sizes. Everything below the seat rails grows with seat
+// height, everything above the seat with back height, widths with seat width, depths with seat depth.
+// Part cut lengths change by exactly as much as their drawn length, so tenon allowances stay the same.
+
+export interface Dims { seatHeight: number; seatWidth: number; seatDepth: number; backHeight: number }
+export type DimKey = keyof Dims;
+export const DIM_LABELS: Record<DimKey, string> = { seatHeight: "Seat height", seatWidth: "Seat width", seatDepth: "Seat depth", backHeight: "Back height" };
+
+/** The file's own sizes, and how far each may move (from the file's "adjust", or a sensible default). */
+export function specDims(s: FurnitureSpec) {
+  const g = specGeometry(s);
+  const base: Dims = { seatHeight: g.seatTop, seatWidth: g.seatWidth, seatDepth: g.seatDepth, backHeight: r1(g.top - g.seatTop) };
+  const fallback: Record<DimKey, [number, number]> = {
+    seatHeight: [Math.max(30, base.seatHeight - 7), base.seatHeight + 7],
+    seatWidth: [base.seatWidth - 8, base.seatWidth + 10],
+    seatDepth: [base.seatDepth - 6, base.seatDepth + 8],
+    backHeight: [Math.max(10, base.backHeight - 15), base.backHeight + 15],
+  };
+  const keys: DimKey[] = g.hasBack ? ["seatHeight", "seatWidth", "seatDepth", "backHeight"] : ["seatHeight", "seatWidth", "seatDepth"];
+  const ranges = Object.fromEntries(keys.map((k) => {
+    const [a, b] = s.adjust?.[k] ?? fallback[k];
+    return [k, [Math.min(a, base[k]), Math.max(b, base[k])] as [number, number]];
+  })) as Partial<Record<DimKey, [number, number]>>;
+  return { base, ranges, keys };
+}
+
+const c2 = (n: number) => Math.round(n * 100) / 100;
+
+/** A copy of the file stretched to new overall sizes. Same parts, same joints, new positions and lengths. */
+export function resizeSpec(s: FurnitureSpec, want: Partial<Dims>): FurnitureSpec {
+  const { base, ranges } = specDims(s);
+  const clamp = (k: DimKey) => {
+    const r = ranges[k];
+    const v = want[k] ?? base[k];
+    return r ? Math.min(r[1], Math.max(r[0], v)) : base[k];
+  };
+  const d: Dims = { seatHeight: clamp("seatHeight"), seatWidth: clamp("seatWidth"), seatDepth: clamp("seatDepth"), backHeight: clamp("backHeight") };
+  if (d.seatHeight === base.seatHeight && d.seatWidth === base.seatWidth && d.seatDepth === base.seatDepth && d.backHeight === base.backHeight) return s;
+  const g = specGeometry(s);
+  const sh0 = base.seatHeight;
+  const dh = d.seatHeight - sh0, dw = d.seatWidth - base.seatWidth, dd = d.seatDepth - base.seatDepth;
+  const band = Math.max(5, sh0 - 12); // the seat rails and seat ride up rigidly; legs below stretch
+  const bk = base.backHeight > 0 ? d.backHeight / base.backHeight : 1;
+  const zc = g.seatCentreZ;
+  const Y = (y: number) => (y <= band ? (y * (band + dh)) / band : y <= sh0 + 0.01 ? y + dh : d.seatHeight + (y - sh0) * bk);
+  const X = (x: number) => (Math.abs(x) < 0.3 ? x : x + (Math.sign(x) * dw) / 2);
+  const Z = (z: number) => (Math.abs(z - zc) < 0.3 ? z : z + (Math.sign(z - zc) * dd) / 2);
+  const P = (p: V3): V3 => [c2(X(p[0])), c2(Y(p[1])), c2(Z(p[2]))];
+  return {
+    ...s,
+    parts: s.parts.map((p) => {
+      if (p.sticks?.length) {
+        const sticks = p.sticks.map(([a, b]) => [P(a), P(b)] as [V3, V3]);
+        const [a0, b0] = p.sticks[0]!, [a1, b1] = sticks[0]!;
+        const grow = dist(a1, b1) - dist(a0, b0);
+        // A wide part centred on the middle (a back panel) also gets wider with the seat.
+        const centred = p.size[1] > 10 && p.sticks.every(([a, b]) => Math.abs(a[0]) < 0.3 && Math.abs(b[0]) < 0.3);
+        return { ...p, sticks, size: [r1(p.size[0] + grow), r1(p.size[1] + (centred ? dw : 0)), p.size[2]] as V3 };
+      }
+      return { ...p, boards: p.boards!.map((bd) => ({ at: P(bd.at) })), size: [r1(p.size[0] + dw), r1(p.size[1] + dd), p.size[2]] as V3 };
+    }),
+  };
 }

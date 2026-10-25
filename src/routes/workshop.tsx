@@ -8,8 +8,8 @@ import { ComponentLab } from "@/components/workshop/ComponentLab";
 import { HowItWorks } from "@/components/workshop/HowItWorks";
 import { Templates } from "@/components/workshop/Templates";
 import { CHAIR_IDS, isSpecPiece, type PieceId } from "@/lib/storage/chairProgress";
-import { specById } from "@/lib/furniture/spec";
-import { SpecWorkshop } from "@/components/workshop/SpecWorkshop";
+import { findSpec } from "@/lib/furniture/saved";
+import { MissingDesign, SpecWorkshop } from "@/components/workshop/SpecWorkshop";
 
 const SECTIONS: Section[] = ["discover", "study", "design", "build", "lab", "projects", "library", "progress", "how", "templates"];
 
@@ -17,7 +17,7 @@ export const Route = createFileRoute("/workshop")({
   ssr: false,
   validateSearch: (s: Record<string, unknown>): { section?: Section; chair?: PieceId } => {
     const c = typeof s["chair"] === "string" ? s["chair"] : "";
-    const chair = CHAIR_IDS.includes(c as never) ? (c as PieceId) : isSpecPiece(c) && specById(c.slice(5)) ? (c as PieceId) : undefined;
+    const chair = CHAIR_IDS.includes(c as never) ? (c as PieceId) : isSpecPiece(c) && /^spec:[a-z0-9-]+$/.test(c) ? (c as PieceId) : undefined;
     return { section: SECTIONS.includes(s["section"] as Section) ? (s["section"] as Section) : undefined, chair };
   },
   head: () => ({
@@ -35,7 +35,10 @@ export const Route = createFileRoute("/workshop")({
 
 function WorkshopPage() {
   const { section, chair = "kangaroo" } = Route.useSearch();
-  if (isSpecPiece(chair)) return <SpecWorkshop key={chair} spec={specById(chair.slice(5))!} />;
+  if (isSpecPiece(chair)) {
+    const spec = findSpec(chair.slice(5));
+    return spec ? <SpecWorkshop key={chair} spec={spec} /> : <MissingDesign />;
+  }
   const start: Section = chair === "lab" ? "lab" : (section ?? (chair === "kangaroo" ? "study" : "design"));
   return (
     <WorkshopProvider key={chair} initialSection={start} chair={chair}>

@@ -1,5 +1,8 @@
 import { useState } from "react";
-import { Maximize2, Minimize2, ScanEye, X } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { ArrowRight, Check, FileJson, Maximize2, Minimize2, ScanEye, X } from "lucide-react";
+import { labToSpec } from "@/lib/furniture/fromLab";
+import { saveDesign } from "@/lib/furniture/saved";
 import { BLANK, JOINT_TYPES, WOODS, evaluateLab, labTipping, type Back, type Base, type LabDesign, type Level } from "@/lib/lab";
 import { StudioShell } from "@/components/three/StudioCanvas";
 import { LabModel } from "@/components/three/LabModel";
@@ -82,6 +85,7 @@ export function ComponentLab() {
             <button onClick={() => { mark("test"); setTested(true); }} className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">Test this chair</button>
             <button onClick={() => { setD(BLANK); setTested(false); }} className="rounded-md border hairline px-4 py-2 text-sm">Clear bench</button>
           </div>
+          <SaveDesign d={d} />
           <details className="rounded-md border hairline p-2" onToggle={(e) => { if ((e.target as HTMLDetailsElement).open) mark("math"); }}>
             <summary className="cursor-pointer text-xs text-muted-foreground">Show the math — side view, tipping, leg bending, your knee height</summary>
             <div className="mt-3 space-y-4">
@@ -183,6 +187,36 @@ function SideView({ d }: { d: LabDesign }) {
       ); })()}
       <text x={6} y={14} fontSize={9} className="fill-muted-foreground">Dashed line = combined centre of mass; dot = rear foot (pivot). {tip.result.thresholdF === null ? "" : `Tips at ${Math.round(tip.result.thresholdF)} N of lean.`}</text>
     </svg>
+  );
+}
+
+/** Save the bench design as a furniture data file: it then appears on the home screen as its own chair. */
+function SaveDesign({ d }: { d: LabDesign }) {
+  const navigate = useNavigate();
+  const [name, setName] = useState("My chair");
+  const [saved, setSaved] = useState<{ id: string; key: string } | null>(null);
+  const key = JSON.stringify(d) + name;
+  const fresh = saved?.key === key;
+  const save = () => {
+    const spec = labToSpec(d, name);
+    saveDesign(spec);
+    setSaved({ id: spec.id, key });
+  };
+  return (
+    <div className="rounded-md border border-teal/40 bg-teal/5 p-3">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-teal"><FileJson className="h-3.5 w-3.5" /> Save as a design</div>
+      <p className="mt-1 text-[11px] text-muted-foreground">Turns this chair into its own page, with size sliders, a cut list, lumber fit and assembly steps. The app writes the file for you: no code.</p>
+      <div className="mt-2 flex gap-2">
+        <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} aria-label="Design name" className="min-w-0 flex-1 rounded border hairline bg-background px-2 py-1 text-xs" />
+        <button onClick={save} disabled={fresh} className="rounded-md bg-teal px-3 py-1 text-xs text-accent-foreground disabled:opacity-50">{fresh ? "Saved" : "Save"}</button>
+      </div>
+      {fresh && (
+        <div className="mt-2 flex items-center justify-between gap-2 text-[11px]">
+          <span className="flex items-center gap-1 text-teal"><Check className="h-3 w-3" /> On the home screen under Your own.</span>
+          <button onClick={() => navigate({ to: "/workshop", search: { chair: `spec:${saved!.id}` } })} className="flex items-center gap-1 text-walnut hover:underline">Open it <ArrowRight className="h-3 w-3" /></button>
+        </div>
+      )}
+    </div>
   );
 }
 

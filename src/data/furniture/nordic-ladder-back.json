@@ -9,6 +9,7 @@
   "wood": "ash",
   "joint": "mt",
   "units": "cm; x = side to side, y = up, z = front (+) to back (-)",
+  "adjust": { "seatHeight": [40, 50], "seatWidth": [38, 50], "seatDepth": [36, 46], "backHeight": [35, 55] },
   "parts": [
     {
       "id": "frontLeg", "name": "Front leg", "role": "leg",

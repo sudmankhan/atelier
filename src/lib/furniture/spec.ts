@@ -6,6 +6,7 @@ import { z } from "zod";
 import nordicLadderBack from "@/data/furniture/nordic-ladder-back.json";
 
 const P3 = z.tuple([z.number(), z.number(), z.number()]);
+const Range = z.tuple([z.number().positive(), z.number().positive()]).refine(([a, b]) => a < b, { message: "range must be [min, max]" });
 
 export const PartSchema = z
   .object({
@@ -16,6 +17,8 @@ export const PartSchema = z
     /** finished size in cm: [length along the grain, width, thickness] */
     size: z.tuple([z.number().positive(), z.number().positive(), z.number().positive()]),
     note: z.string().default(""),
+    /** draw as a round dowel-like member instead of a square one */
+    round: z.boolean().optional(),
     /** straight members: [from, to] centreline points; width runs sideways, thickness runs up */
     sticks: z.array(z.tuple([P3, P3])).optional(),
     /** flat boards: centre point; length along x, width along z, thickness along y */
@@ -39,8 +42,27 @@ export const FurnitureSchema = z
     source: z.string(),
     verified: z.boolean(),
     wood: z.enum(["oak", "ash", "walnut", "pine"]),
-    joint: z.enum(["mt", "wedged", "dowel"]),
+    joint: z.enum(["mt", "wedged", "dowel", "screw"]),
     units: z.string().optional(),
+    /** how the chair is put together, for the Lab's joint and craft rules (defaults: four legs, slats, no splay) */
+    construction: z
+      .object({
+        base: z.enum(["four", "splayed", "sled", "zframe"]).default("four"),
+        back: z.enum(["none", "slats", "spindles", "panel"]).optional(),
+        splay: z.number().min(0).max(30).default(0),
+        /** leg thickness the joint checks use, if not the drawn one */
+        legThickness: z.number().positive().optional(),
+      })
+      .optional(),
+    /** which overall sizes a maker may change, and how far (cm). Missing ones get a sensible range. */
+    adjust: z
+      .object({
+        seatHeight: Range.optional(),
+        seatWidth: Range.optional(),
+        seatDepth: Range.optional(),
+        backHeight: Range.optional(),
+      })
+      .optional(),
     parts: z.array(PartSchema).min(1),
     steps: z.array(StepSchema).min(2),
   })

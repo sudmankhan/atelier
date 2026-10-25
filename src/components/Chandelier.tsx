@@ -2,7 +2,8 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { ClientOnly, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { chairSummary, formatTime, type PieceId } from "@/lib/storage/chairProgress";
-import { SPECS } from "@/lib/furniture/spec";
+import { SPECS, type FurnitureSpec } from "@/lib/furniture/spec";
+import { loadSaved } from "@/lib/furniture/saved";
 
 const ChairPreview = lazy(() => import("@/components/three/ChairPreview"));
 
@@ -21,12 +22,14 @@ interface Node {
   off?: boolean;
   chair?: PieceId;
   fromFile?: boolean;
+  saved?: boolean;
+  title?: string;
   icon?: string;
   desc?: string;
 }
 
 // World is 1000 × 720. Deeper levels are deliberately tiny until you zoom into them.
-const NODES: Node[] = [
+const BASE_NODES: Node[] = [
   { id: "root", p: null, x: 500, y: 110, r: 9, label: "Atelier", fs: 30, serif: true },
   { id: "chairs", p: "root", x: 560, y: 300, r: 6, label: "Chairs", fs: 20 },
   { id: "tables", p: "root", x: 170, y: 280, r: 5, label: "Tables · soon", fs: 15, off: true },
@@ -47,21 +50,34 @@ const NODES: Node[] = [
 const STYLE_NODE: Record<string, string> = { Nordic: "nor", Modernist: "mod", Japanese: "jap" };
 const LADDER = "M-7,-1 L7,-1 M-6,-1 L-6,7 M6,-1 L6,7 M-6,-1 L-6,-12 M6,-1 L6,-12 M-6,-10 L6,-10 M-6,-7 L6,-7 M-6,-4 L6,-4";
 SPECS.forEach((s, i) => {
-  const parent = NODES.find((n) => n.id === (STYLE_NODE[s.style] ?? "nor"))!;
-  NODES.push({ id: `spec-${s.id}`, p: parent.id, x: parent.x - 2 + i * 14, y: parent.y + 90, r: 2, label: s.name.replace(/^Nordic /, "").replace(/^./, (c) => c.toUpperCase()), fs: 5.2, chair: `spec:${s.id}`, icon: LADDER, desc: s.description, fromFile: true });
+  const parent = BASE_NODES.find((n) => n.id === (STYLE_NODE[s.style] ?? "nor"))!;
+  BASE_NODES.push({ id: `spec-${s.id}`, p: parent.id, x: parent.x - 2 + i * 14, y: parent.y + 90, r: 2, label: s.name.replace(/^Nordic /, "").replace(/^./, (c) => c.toUpperCase()), fs: 5.2, chair: `spec:${s.id}`, icon: LADDER, desc: s.description, fromFile: true });
 });
-const BY = Object.fromEntries(NODES.map((n) => [n.id, n])) as Record<string, Node>;
-const kids = (id: string) => NODES.filter((n) => n.p === id);
-const descendants = (id: string): Node[] => kids(id).flatMap((k) => [k, ...descendants(k.id)]);
-const ancestors = (id: string): string[] => {
-  const out: string[] = [];
-  let n = BY[id];
-  while (n?.p) { out.push(n.p); n = BY[n.p]; }
-  return out;
-};
+const CHAIR_ICON = "M-7,-1 L7,-1 M-6,-1 L-6,7 M6,-1 L6,7 M-6,-1 L-6,-10 M6,-1 L6,-10 M-6,-9 L6,-9";
+
+// Designs saved from Build your own hang next to it, under "Your own" (newest first, up to 5).
+function makeTree(saved: FurnitureSpec[]) {
+  const lab = BASE_NODES.find((n) => n.id === "lab")!;
+  const mine: Node[] = saved.slice(-5).reverse().map((s, i) => ({
+    id: `spec-${s.id}`, p: "own", x: lab.x + (i + 1) * 46, y: lab.y + (i % 2 ? 10 : 0), r: 2, fs: 5.2,
+    label: s.name.length > 18 ? `${s.name.slice(0, 17)}…` : s.name, title: s.name, chair: `spec:${s.id}`, icon: CHAIR_ICON, desc: s.description, fromFile: true, saved: true,
+  }));
+  const NODES = [...BASE_NODES, ...mine];
+  const BY = Object.fromEntries(NODES.map((n) => [n.id, n])) as Record<string, Node>;
+  const kids = (id: string) => NODES.filter((n) => n.p === id);
+  const descendants = (id: string): Node[] => kids(id).flatMap((k) => [k, ...descendants(k.id)]);
+  const ancestors = (id: string): string[] => {
+    const out: string[] = [];
+    let n = BY[id];
+    while (n?.p) { out.push(n.p); n = BY[n.p]; }
+    return out;
+  };
+  return { NODES, BY, descendants, ancestors };
+}
+type Tree = ReturnType<typeof makeTree>;
 type VB = [number, number, number, number];
 
-function fitBox(id: string, aspect: number): VB {
+function fitBox({ BY, descendants }: Tree, id: string, aspect: number): VB {
   const n = BY[id]!;
   let x0: number, x1: number, y0: number, y1: number;
   if (n.chair) { x0 = n.x - 40; x1 = n.x + 40; y0 = n.y - 30; y1 = n.y + 30; }
@@ -85,6 +101,16 @@ export function Chandelier() {
   const vbRef = useRef(vb);
   vbRef.current = vb;
   const anim = useRef(0);
+  const [saved, setSaved] = useState<FurnitureSpec[]>([]);
+  useEffect(() => {
+    const load = () => setSaved(loadSaved());
+    load();
+    window.addEventListener("atelier-designs", load);
+    window.addEventListener("storage", load);
+    return () => { window.removeEventListener("atelier-designs", load); window.removeEventListener("storage", load); };
+  }, []);
+  const tree = useMemo(() => makeTree(saved), [saved]);
+  const { NODES, BY, descendants, ancestors } = tree;
 
   useEffect(() => {
     const el = wrap.current;
@@ -96,7 +122,7 @@ export function Chandelier() {
 
   // Glide the camera (viewBox) to the focused branch.
   useEffect(() => {
-    const to = fitBox(focus, aspect), from = vbRef.current, t0 = performance.now(), D = 700;
+    const to = fitBox(tree, focus, aspect), from = vbRef.current, t0 = performance.now(), D = 700;
     const reduce = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
     cancelAnimationFrame(anim.current);
     if (reduce) { setVb(to); return; }
@@ -107,11 +133,11 @@ export function Chandelier() {
     };
     anim.current = requestAnimationFrame(step);
     return () => cancelAnimationFrame(anim.current);
-  }, [focus, aspect]);
+  }, [focus, aspect, tree]);
 
-  const keep = useMemo(() => new Set([focus, ...descendants(focus).map((d) => d.id)]), [focus]);
-  const up = useMemo(() => new Set(ancestors(focus)), [focus]);
-  const back = useCallback(() => { const p = BY[focus]?.p; if (p) setFocus(p); }, [focus]);
+  const keep = useMemo(() => new Set([focus, ...descendants(focus).map((d) => d.id)]), [focus, tree]);
+  const up = useMemo(() => new Set(ancestors(focus)), [focus, tree]);
+  const back = useCallback(() => { const p = BY[focus]?.p; if (p) setFocus(p); }, [focus, tree]);
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === "Escape") back(); };
     window.addEventListener("keydown", k);
@@ -194,8 +220,8 @@ function ChairCard({ n, onOpen }: { n: Node; onOpen: () => void }) {
             </Suspense>
           </ClientOnly>
         </div>
-        <div className="mt-3 font-serif text-2xl">{n.label}</div>
-        {n.fromFile && <div className="mt-1 inline-block rounded-full border border-teal/50 px-2 py-0.5 text-[10px] uppercase tracking-wide text-teal">Made from a data file</div>}
+        <div className="mt-3 font-serif text-2xl">{n.title ?? n.label}</div>
+        {n.fromFile && <div className="mt-1 inline-block rounded-full border border-teal/50 px-2 py-0.5 text-[10px] uppercase tracking-wide text-teal">{n.saved ? "Your design · saved as a file" : "Made from a data file"}</div>}
         <p className="mt-1 text-sm text-muted-foreground">{n.desc}</p>
         <div className="mt-3 h-1 overflow-hidden rounded-full bg-secondary">
           <div className="h-full bg-teal transition-all duration-700" style={{ width: `${s?.pct ?? 0}%` }} />

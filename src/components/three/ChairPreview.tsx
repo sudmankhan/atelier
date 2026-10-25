@@ -7,14 +7,14 @@ import { BASELINE } from "@/lib/chair/params";
 import { J_BASELINE } from "@/lib/chair/japanese/params";
 import { BLANK, type LabDesign } from "@/lib/lab";
 import { isSpecPiece, type PieceId } from "@/lib/storage/chairProgress";
-import { specById } from "@/lib/furniture/spec";
+import { findSpec } from "@/lib/furniture/saved";
 import { SpecModel } from "./SpecModel";
 
 const LAB_PREVIEW: LabDesign = { ...BLANK, base: "splayed", back: "spindles", joint: "wedged", wood: "oak", splay: 8, stretchers: true };
 
 /** Small slowly-turning 3D model for the chandelier card. Same models as the workshop. */
 export default function ChairPreview({ chair }: { chair: PieceId }) {
-  const spec = isSpecPiece(chair) ? specById(chair.slice(5)) : null;
+  const spec = isSpecPiece(chair) ? findSpec(chair.slice(5)) : null;
   return (
     <StudioShell autoRotate initial="three">
       {chair === "kangaroo" && <ChairModel params={BASELINE} />}
