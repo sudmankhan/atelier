@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ModelViewerElement } from "@google/model-viewer";
+import modelViewerScript from "@google/model-viewer/dist/model-viewer.min.js?url";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { StudioShell } from "@/components/three/StudioCanvas";
 import { SpecModel } from "@/components/three/SpecModel";
 import { arModesForSource, makeARLink } from "@/lib/furniture/arLink";
 import { exportSpecGlb } from "@/lib/furniture/exportGlb";
 import type { FurnitureSpec } from "@/lib/furniture/spec";
+
+type ModelViewerElement = HTMLElement & { canActivateAR: boolean; loaded: boolean };
 
 function PhoneQR({ url }: { url: string }) {
   const [image, setImage] = useState<string>();
@@ -64,7 +66,9 @@ export function ARModal({
     const timeout = window.setTimeout(() => {
       if (active) setFailure(true);
     }, 25_000);
-    Promise.all([import("@google/model-viewer"), exportSpecGlb(spec)])
+    // Import the browser bundle by URL. A normal package import can be hoisted into
+    // TanStack/Nitro's server chunks, where model-viewer's `self` access crashes SSR.
+    Promise.all([import(/* @vite-ignore */ modelViewerScript), exportSpecGlb(spec)])
       .then(([, glb]) => {
         if (!active) return;
         url = URL.createObjectURL(glb);
