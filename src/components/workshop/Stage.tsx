@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Activity, Box, Eye, Focus, GitCompare, Layers, Minimize2, Move3d, RotateCcw, Ruler, SlidersHorizontal } from "lucide-react";
+import { Activity, Box, Eye, Focus, GitCompare, Layers, Minimize2, Move3d, RotateCcw, Ruler, Scan, SlidersHorizontal } from "lucide-react";
+import * as THREE from "three";
 import { StudioCanvas } from "@/components/three/StudioCanvas";
 import { JapaneseCanvas } from "@/components/three/JapaneseCanvas";
+import { ChairModel } from "@/components/three/ChairModel";
+import { JapaneseChairModel } from "@/components/three/JapaneseChairModel";
 import { BASELINE } from "@/lib/chair/params";
 import { J_BASELINE } from "@/lib/chair/japanese/params";
 import type { CameraPreset } from "@/lib/lessons";
@@ -15,6 +18,9 @@ import { japaneseStress, kangarooStress } from "@/lib/chair/stress";
 import type { ChairParams } from "@/lib/chair/params";
 import type { JapaneseParams } from "@/lib/chair/japanese/params";
 import { ProvenanceBadge } from "./ProvenanceBadge";
+import { ARModal } from "./ARModal";
+import { disposeSnapshot, snapshotChair } from "@/lib/furniture/snapshotGlb";
+import { makeChairARLink } from "@/lib/furniture/chairARLink";
 
 function ToolBtn({ active, onClick, children, label }: { active?: boolean; onClick: () => void; children: React.ReactNode; label: string }) {
   return (
@@ -41,11 +47,13 @@ const TITLES = {
   japanese: { name: "Kuro spindle-back armchair", sub: "Japanese mingei spirit · lacquered frame & solid slab · educational reconstruction" },
 } as const;
 
-export function Stage() {
+export function Stage({ autoOpenAR = false }: { autoOpenAR?: boolean }) {
   const w = useWorkshop();
   const [focus, setFocus] = useState(false);
   const [panelOpen, setPanelOpen] = useState(true);
   const [stressPanel, setStressPanel] = useState(true);
+  const modelRef = useRef<THREE.Group>(null);
+  const [arGroup, setARGroup] = useState<THREE.Group | null>(null);
   const isK = w.typology === "kangaroo";
   const isBuild = w.section === "build";
   const isDesign = w.section === "design";
@@ -61,6 +69,20 @@ export function Stage() {
     [isK, params],
   );
   const stress = stressOn ? report : null;
+  const openAR = () => {
+    if (modelRef.current) setARGroup(snapshotChair(modelRef.current, isK ? params as ChairParams : undefined));
+  };
+  useEffect(() => {
+    if (!autoOpenAR) return;
+    const frame = requestAnimationFrame(openAR);
+    return () => cancelAnimationFrame(frame);
+    // The shared design is set before this component mounts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const closeAR = () => {
+    if (arGroup) disposeSnapshot(arGroup);
+    setARGroup(null);
+  };
 
   const views: { id: CameraPreset; label: string }[] = [
     { id: "three", label: "¾" },
@@ -91,9 +113,10 @@ export function Stage() {
 
   return (
     <div className="relative min-w-0 flex-1 overflow-hidden">
-      <div className="absolute inset-0">
+      {!arGroup && <div className="absolute inset-0">
         {isK ? (
           <StudioCanvas
+            modelRef={modelRef}
             params={params as typeof BASELINE}
             selected={w.selected as never}
             onSelect={(p) => {
@@ -112,6 +135,7 @@ export function Stage() {
           />
         ) : (
           <JapaneseCanvas
+            modelRef={modelRef}
             params={params as typeof J_BASELINE}
             selected={w.selected as never}
             onSelect={(p) => {
@@ -128,16 +152,16 @@ export function Stage() {
             camera={w.camera}
           />
         )}
-      </div>
+      </div>}
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-5">
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-start justify-between gap-2 p-3 sm:flex-row sm:p-5">
         <div className="pointer-events-auto">
           <div className="eyebrow">{isBuild ? "Assembly order" : isDesign ? "Change the chair" : "Learn the chair"}</div>
           <h2 className="mt-1 text-2xl">{t.name}</h2>
           <p className="mt-1 max-w-sm text-xs text-muted-foreground">{t.sub}</p>
         </div>
-        <div className="pointer-events-auto flex flex-col items-end gap-2">
-          <div className="flex items-center gap-1 rounded-lg border hairline bg-card/90 p-1 backdrop-blur">
+        <div className="pointer-events-auto flex max-w-full flex-col items-start gap-2 sm:items-end">
+          <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border hairline bg-card/90 p-1 backdrop-blur">
             {views.map((v) => (
               <ToolBtn key={v.id} label={`${v.label} view`} active={w.camera.preset === v.id} onClick={() => w.goView(v.id)}>
                 {v.label}
@@ -148,9 +172,12 @@ export function Stage() {
               <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.5} />
             </ToolBtn>
           </div>
-          <div className="flex items-center gap-1 rounded-lg border hairline bg-card/90 p-1 backdrop-blur">
+          <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-lg border hairline bg-card/90 p-1 backdrop-blur">
             <ToolBtn label="Explode: pull the chair apart to see every piece" active={exploded} onClick={() => w.setExploded(!w.exploded)}>
               <Layers className="h-3.5 w-3.5" strokeWidth={1.5} /> Explode
+            </ToolBtn>
+            <ToolBtn label="View in your room" onClick={openAR}>
+              <Scan className="h-3.5 w-3.5" strokeWidth={1.5} /> View in your room
             </ToolBtn>
             <ToolBtn label="Weak spots: grain direction and how hard each joint works" active={stressOn} onClick={() => { if (!stressOn) w.mark("weak"); setStressOn(!stressOn); setStressPanel(true); }}>
               <Activity className="h-3.5 w-3.5" strokeWidth={1.5} /> Weak spots
@@ -237,7 +264,7 @@ export function Stage() {
 
       <AnimatePresence mode="wait">
         {!focus && isDesign && (panelOpen ? (
-          <motion.div key="design" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="absolute left-5 top-44 bottom-14 w-72">
+          <motion.div key="design" initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} className="absolute left-3 top-52 bottom-14 w-72 sm:left-5 sm:top-44">
             <button onClick={() => setPanelOpen(false)} aria-label="Minimize controls" className="absolute -right-3 top-2 z-10 rounded-full border hairline bg-card p-1 shadow-sm"><Minimize2 className="h-3 w-3" /></button>
             <DesignControls />
           </motion.div>
@@ -261,6 +288,13 @@ export function Stage() {
           <button key="build-pill" onClick={() => setPanelOpen(true)} className="absolute bottom-12 left-1/2 -translate-x-1/2 rounded-full border hairline bg-card/95 px-3 py-2 text-xs shadow-sm">Show assembly order</button>
         ))}
       </AnimatePresence>
+      {arGroup && <ARModal
+        group={arGroup}
+        name={t.name}
+        shareUrl={makeChairARLink(window.location.href, w.typology, params)}
+        fallback={isK ? <ChairModel params={params as ChairParams} /> : <JapaneseChairModel params={params as JapaneseParams} />}
+        onClose={closeAR}
+      />}
     </div>
   );
 }
