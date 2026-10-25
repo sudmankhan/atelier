@@ -54,8 +54,10 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
     mark("pick");
     setD(b.design);
     setSetting(b.setting);
-    setBrief({ brief: b, source, note });
-    setTested(true);
+    // A change ("make the legs straight") keeps the chair's name.
+    setBrief((prev) => ({ brief: b.name === "My chair" && prev ? { ...b, name: prev.brief.name } : b, source, note }));
+    // In "Your chair" the verdict box sums the tests up; the full results card opens on "See all results".
+    if (view === "hood") setTested(true);
   };
   const user = useMemo(() => (knee === "" ? { setting } : { poplitealHeight: knee, setting }), [knee, setting]);
   const results = evaluateLab(d, user);
@@ -64,14 +66,19 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
   const [durOpen, setDurOpen] = useState(false);
   const [kitOpen, setKitOpen] = useState(false);
   const [mathOpen, setMathOpen] = useState(false);
+  // Two levels: "Your chair" (describe it, is it OK, durability, build kit) and "Under the hood" (parts, sliders, the maths).
+  const [view, setView] = useState<"chair" | "hood">("chair");
   const seeMath = (t: MathTopic) => {
     setDurOpen(false);
     setPanel(true);
+    setView("hood");
     if (t === "tipping" || t === "bending") { setMathOpen(true); mark("math"); }
     else setTested(true);
   };
   const failing = results.some((r) => r.level === "bad");
-  const fixes = useMemo(() => (tested && failing ? findFixes(d, user, locked) : []), [tested, failing, d, user, locked]);
+  const fixes = useMemo(() => (failing ? findFixes(d, user, locked) : []), [failing, d, user, locked]);
+  const counts = { good: 0, warn: 0, bad: 0 };
+  for (const r of results) counts[r.level]++;
   const applyFix = (f: Fix) => { mark("pick"); setD(f.design); setFixOpen(false); };
   const tip = labTipping(d);
   const tips = tested && results.some((r) => r.area === "Stability" && r.level === "bad");
@@ -85,8 +92,8 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col items-start justify-between gap-2 p-3 sm:flex-row sm:p-5">
         <div className="pointer-events-auto">
-          <div className="eyebrow">Build your own</div>
-          <h2 className="mt-1 text-2xl">Pick parts, then test your chair</h2>
+          <div className="eyebrow">{view === "chair" ? "Your chair" : "Under the hood"}</div>
+          <h2 className="mt-1 text-2xl">{view === "chair" ? "Describe it, check it, build it" : "Pick parts, then test your chair"}</h2>
         </div>
         <div className="pointer-events-auto flex max-w-full gap-1 overflow-x-auto rounded-lg border hairline bg-card/90 p-1 backdrop-blur">
           <BeginnerToggle />
@@ -99,9 +106,9 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
           <button onClick={() => setAROpen(true)} title="View in your room" className="flex h-9 items-center gap-2 rounded-md px-3 text-xs hover:bg-secondary">
             <Scan className="h-3.5 w-3.5" /> View in your room
           </button>
-          <button onClick={() => setXray(!xray)} aria-pressed={xray} title="See-through view: the wood turns glassy so you can see where each joint sits and how big it is" className={cn("flex h-9 items-center gap-2 rounded-md px-3 text-xs", xray ? "bg-teal text-accent-foreground" : "hover:bg-secondary")}>
+          {view === "hood" && <button onClick={() => setXray(!xray)} aria-pressed={xray} title="See-through view: the wood turns glassy so you can see where each joint sits and how big it is" className={cn("flex h-9 items-center gap-2 rounded-md px-3 text-xs", xray ? "bg-teal text-accent-foreground" : "hover:bg-secondary")}>
             <ScanEye className="h-3.5 w-3.5" /> See joints
-          </button>
+          </button>}
           <button onClick={() => setPanel(!panel)} title="Hide or show the parts menu" className="flex h-9 items-center gap-2 rounded-md px-3 text-xs hover:bg-secondary">
             {panel ? <><Minimize2 className="h-3.5 w-3.5" /> Hide menu</> : <><Maximize2 className="h-3.5 w-3.5" /> Show menu</>}
           </button>
@@ -110,9 +117,26 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
 
       {panel && (
         <div className="absolute z-10 left-3 top-40 bottom-3 w-[min(20rem,calc(100vw-1.5rem))] space-y-4 overflow-y-auto rounded-xl border hairline bg-card/95 p-4 shadow-sm backdrop-blur sm:left-5 sm:top-24 sm:bottom-5">
-          <DescribeBox current={d} setting={setting} onDesign={applyBrief} />
-          {brief && <BriefNote {...brief} onClose={() => setBrief(null)} />}
-          <div className="eyebrow pt-1">Or pick the parts yourself</div>
+          <div role="tablist" aria-label="View" className="grid grid-cols-2 gap-1 rounded-lg bg-secondary/60 p-1">
+            {([["chair", "Your chair"], ["hood", "Under the hood"]] as const).map(([id, label]) => (
+              <button key={id} role="tab" aria-selected={view === id} onClick={() => setView(id)} className={cn("rounded-md py-1.5 text-xs", view === id ? "bg-card font-medium shadow-sm" : "text-muted-foreground hover:text-foreground")}>{label}</button>
+            ))}
+          </div>
+          {view === "chair" ? (
+            <>
+              <DescribeBox current={d} setting={setting} onDesign={applyBrief} />
+              {brief && <BriefNote {...brief} onClose={() => setBrief(null)} />}
+              <ChairStatus counts={counts} failing={failing} fixCount={fixes.length} onFix={() => { setTested(true); setFixOpen(true); }} onResults={() => setTested(true)} />
+              <div className="grid gap-2">
+                <BigAction icon={ShieldCheck} title="Durability report" line="What it's built for, what wears first, how to look after it" onClick={() => setDurOpen(true)} />
+                <BigAction icon={Hammer} title="Build kit" line="Drawings, what to buy, rough cost, cut list" onClick={() => setKitOpen(true)} />
+                <BigAction icon={Scan} title="View in your room" line="See it life-size on your phone" onClick={() => setAROpen(true)} />
+              </div>
+              <SaveDesign key={brief?.brief.name ?? "mine"} d={d} suggested={brief?.brief.name} />
+              <button onClick={() => setView("hood")} className="w-full text-left text-xs text-walnut underline-offset-2 hover:underline">Change the parts yourself, or see the maths → Under the hood</button>
+            </>
+          ) : (<>
+          <p className="text-[11px] text-muted-foreground">Every part, size and test the app uses. Change anything; the chair re-tests as you go.</p>
           <Pick title="Base" hint="What the chair stands on." opts={BASES} v={d.base} on={(v) => set("base", v)} />
           <Pick title="Back" hint="What you lean on. No back = a stool." opts={BACKS} v={d.back} on={(v) => set("back", v)} />
           <Pick title="Joints" hint="How the legs lock into the seat. Mortise & tenon is strongest, screws weakest." opts={Object.entries(JOINT_TYPES).map(([id, j]) => ({ id: id as LabDesign["joint"], label: j.name }))} v={d.joint} on={(v) => set("joint", v)} />
@@ -135,7 +159,6 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
             <button onClick={() => { mark("test"); setTested(true); }} className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground">Test this chair</button>
             <button onClick={() => { setD(BLANK); setTested(false); }} className="rounded-md border hairline px-4 py-2 text-sm">Clear bench</button>
           </div>
-          <SaveDesign key={brief?.brief.name ?? "mine"} d={d} suggested={brief?.brief.name} />
           <details open={mathOpen} className="rounded-md border hairline p-2" onToggle={(e) => { const o = (e.target as HTMLDetailsElement).open; setMathOpen(o); if (o) mark("math"); }}>
             <summary className="cursor-pointer text-xs text-muted-foreground">Show the math — side view, tipping, leg bending, your knee height</summary>
             <div className="mt-3 space-y-4">
@@ -156,6 +179,7 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
               </div>
             </div>
           </details>
+          </>)}
         </div>
       )}
 
@@ -167,7 +191,7 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
         <DurabilityCard d={d} user={user} setting={setting} onSetting={setSetting} onSeeMath={seeMath}
           onFix={() => { setDurOpen(false); setTested(true); setFixOpen(true); }} onClose={() => setDurOpen(false)} />
       )}
-      {fixOpen && tested && failing && (
+      {fixOpen && failing && (
         <FixOptions d={d} user={user} fixes={fixes} locked={locked} onLock={(k) => setLocked((l) => (l.includes(k) ? l.filter((x) => x !== k) : [...l, k]))} onUse={applyFix} onClose={() => setFixOpen(false)} />
       )}
       {arOpen && <ARModal spec={arSpec} shareUrl={makeChairARLink(window.location.href, "lab", d)} onClose={() => setAROpen(false)} />}
@@ -249,6 +273,32 @@ function SideView({ d }: { d: LabDesign }) {
       ); })()}
       <text x={6} y={14} fontSize={9} className="fill-muted-foreground">Dashed line = combined centre of mass; dot = rear foot (pivot). {tip.result.thresholdF === null ? "" : `Tips at ${Math.round(tip.result.thresholdF)} N of lean.`}</text>
     </svg>
+  );
+}
+
+/** One-glance verdict for the "Your chair" view, with the fix button when something fails. */
+function ChairStatus({ counts, failing, fixCount, onFix, onResults }: { counts: { good: number; warn: number; bad: number }; failing: boolean; fixCount: number; onFix: () => void; onResults: () => void }) {
+  return (
+    <div className={cn("rounded-lg border p-3", failing ? "border-alert/40 bg-alert/5" : "border-teal/40 bg-teal/5")}>
+      <div className={cn("text-sm font-medium", failing ? "text-alert" : "text-teal")}>
+        {failing ? `${counts.bad} problem${counts.bad === 1 ? "" : "s"} to fix before building` : counts.warn ? "Passes every test, with a few things to watch" : "Passes every test"}
+      </div>
+      <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">{counts.good} good · {counts.warn} to watch · {counts.bad} problem{counts.bad === 1 ? "" : "s"}</div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {failing && <button onClick={onFix} className="flex items-center gap-1.5 rounded-md bg-teal px-3 py-1.5 text-xs text-accent-foreground"><Wrench className="h-3.5 w-3.5" /> {fixCount > 1 ? "2 ways to fix this" : fixCount === 1 ? "1 way to fix this" : "Try to fix this"}</button>}
+        <button onClick={onResults} className="rounded-md border hairline px-3 py-1.5 text-xs">See all results</button>
+      </div>
+    </div>
+  );
+}
+
+function BigAction({ icon: Icon, title, line, onClick }: { icon: typeof Hammer; title: string; line: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="flex items-center gap-3 rounded-lg border hairline bg-background p-3 text-left hover:border-teal/60 hover:bg-teal/5">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-secondary"><Icon className="h-4 w-4" /></span>
+      <span className="min-w-0 flex-1"><span className="block text-sm font-medium">{title}</span><span className="block text-[11px] text-muted-foreground">{line}</span></span>
+      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+    </button>
   );
 }
 

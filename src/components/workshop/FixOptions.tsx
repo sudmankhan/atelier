@@ -20,7 +20,7 @@ export function FixOptions({ d, user, fixes, locked, onLock, onUse, onClose }: {
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="eyebrow flex items-center gap-1.5"><Wrench className="h-3.5 w-3.5" /> Ways to fix this</div>
-            <h3 className="mt-1 text-2xl">{fixes.length ? `${fixes.length === 2 ? "Two versions" : "One version"} that pass every test` : "No fix while keeping that"}</h3>
+            <h3 className="mt-1 text-2xl">{fixes.length ? (fixes.length === 2 ? "Two versions that pass every test" : "One version that passes every test") : "No fix while keeping that"}</h3>
             <p className="mt-1 text-sm text-muted-foreground">Found by re-running the same tests on small changes to your chair. Nothing here is guessed.</p>
           </div>
           <button onClick={onClose} aria-label="Close" className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground"><X className="h-4 w-4" /></button>

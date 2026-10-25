@@ -91,3 +91,11 @@ describe("new chair vs. change to this one", () => {
     expect(heuristicBrief("make it a stool", START).design.back).toBe("none");
   });
 });
+
+describe("leg lean in words", () => {
+  it("'make the legs straight' removes the lean; 'splayed' adds it", () => {
+    expect(isChange("Make the legs straight")).toBe(true);
+    expect(heuristicBrief("Make the legs straight", START).design.splay).toBe(0);
+    expect(heuristicBrief("legs that lean out a bit", { ...START, splay: 0 }).design.splay).toBe(10);
+  });
+});

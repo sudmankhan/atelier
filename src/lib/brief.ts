@@ -132,6 +132,8 @@ export function heuristicBrief(text: string, base: LabDesign = START, baseSettin
   else if (/\bash\b/.test(t)) raw.wood = "ash";
   else if (/pine|cheap|budget/.test(t)) raw.wood = "pine";
   else if (/oak/.test(t) || raw.setting) raw.wood = "oak";
+  if (/straight legs?|legs? (straight|upright|vertical)|no (splay|lean)|don'?t lean/.test(t)) raw.splay = 0;
+  else if (/splay|lean(ing)? out|wide stance/.test(t)) raw.splay = 10;
   if (/japan|windsor|stick ?chair|spindle/.test(t)) { raw.base = "splayed"; raw.back = "spindles"; raw.joint = "wedged"; raw.splay = 8; notes.push("splayed legs wedged through the seat"); }
   if (/kangaroo|z-?frame|cantilever/.test(t)) raw.base = "zframe";
   if (/sled|runner/.test(t)) raw.base = "sled";
@@ -170,6 +172,6 @@ wood: "oak" | "ash" | "walnut" | "pine"   (outdoors prefer oak or walnut: ash an
 setting: "indoor" | "covered" | "outdoor"
 seatHeight cm 30-60 (dining 44-46; lounge 38-42; bar 60; small child 30; for a tall person about a quarter of their height)
 seatDepth cm 30-60, seatWidth cm 34-60, backAngle degrees 88-130 (seat-to-back: 100 dining, 108-115 lounge), backHeight cm 15-70,
-legThickness cm 2-5, splay degrees 0-20 (only for "splayed"), stretchers true|false (low bars between legs; add them for sturdy chairs)
+legThickness cm 2-5, splay degrees 0-20 (how far the legs lean out; 0 = straight legs, used with "four" or "splayed"), stretchers true|false (low bars between legs; add them for sturdy chairs)
 cannotDo: list anything asked for that this engine cannot build (it only makes single wooden chairs from the parts above: no rockers, armrests, upholstery, swivels, metal, benches or tables). Never pretend.
 Convert feet/inches to cm. Prefer sturdy, sensible choices when the person doesn't say. Never invent strength claims.`;
