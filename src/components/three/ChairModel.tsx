@@ -1,5 +1,5 @@
 import "./r3fDevSourceShim";
-import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import type { ChairParams } from "@/lib/chair/params";
@@ -128,6 +128,7 @@ function PartGroup({ id, explode, exploded, visible, interactive, onSelect, onHo
 
 export interface ChairModelProps {
   params: ChairParams;
+  modelRef?: Ref<THREE.Group>;
   selected?: PartId | null;
   onSelect?: (p: PartId) => void;
   exploded?: boolean;
@@ -148,6 +149,7 @@ const EXPLODE: Record<PartId, [number, number, number]> = {
 
 export function ChairModel({
   params,
+  modelRef,
   selected = null,
   onSelect,
   exploded = false,
@@ -221,7 +223,7 @@ export function ChairModel({
 
   return (
     <ChairCtx.Provider value={{ ghost, selected, affected, hovered, wood, cane }}>
-      <group scale={0.01}>
+      <group ref={modelRef} scale={0.01}>
         <PartGroup id="sideFrame" explode={EXPLODE.sideFrame} visible={vis("sideFrame")} {...common}>
           {frameGeoms.map((f, i) => (
             <group key={i} position={[exploded ? (i === 0 ? -1 : 1) * 0 : 0, 0, 0]}>

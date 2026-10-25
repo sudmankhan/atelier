@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowDown, ArrowLeft, ArrowUp, Download, FileJson, Layers, RotateCcw, Shuffle, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Download, FileJson, Layers, RotateCcw, Scan, Shuffle, Trash2, X } from "lucide-react";
 import { StudioShell } from "@/components/three/StudioCanvas";
 import { SpecModel } from "@/components/three/SpecModel";
 import type { FurnitureSpec, PartSpec } from "@/lib/furniture/spec";
@@ -11,6 +11,8 @@ import { addTime, markMilestone, type PieceId } from "@/lib/storage/chairProgres
 import { JOINT_TYPES, WOODS } from "@/lib/lab";
 import { ProvenanceBadge } from "./ProvenanceBadge";
 import { cn } from "@/lib/utils";
+import { parseARDims } from "@/lib/furniture/arLink";
+import { ARModal } from "./ARModal";
 import { SETTINGS, type Setting } from "@/lib/weather";
 import { BeginnerToggle, ResultRow, useBeginner, Words } from "@/components/Words";
 
@@ -36,14 +38,20 @@ function loadDims(id: string): Partial<Dims> {
 }
 
 /** Workshop for a piece described in a data file. Everything on this page is generated from the file. */
-export function SpecWorkshop({ spec: original }: { spec: FurnitureSpec }) {
+export function SpecWorkshop({ spec: original, initialDims, autoOpenAR = false }: { spec: FurnitureSpec; initialDims?: string; autoOpenAR?: boolean }) {
   const piece: PieceId = `spec:${original.id}`;
   const [tab, setTab] = useState<Tab>("file");
   const [exploded, setExploded] = useState(false);
   const [highlight, setHighlight] = useState<string | null>(null);
   const dims = useMemo(() => specDims(original), [original]);
-  const [want, setWant] = useState<Partial<Dims>>(() => loadDims(original.id));
+  const [want, setWant] = useState<Partial<Dims>>(() => parseARDims(initialDims) ?? loadDims(original.id));
+  const [arOpen, setAROpen] = useState(autoOpenAR);
   const spec = useMemo(() => resizeSpec(original, want), [original, want]);
+  useEffect(() => {
+    const fromLink = parseARDims(initialDims);
+    if (fromLink) setWant(fromLink);
+    if (autoOpenAR) setAROpen(true);
+  }, [initialDims, autoOpenAR]);
   const changed = spec !== original;
   const setDim = (k: keyof Dims, v: number) => {
     const next = { ...want, [k]: v };
@@ -66,8 +74,8 @@ export function SpecWorkshop({ spec: original }: { spec: FurnitureSpec }) {
   const picked = spec.parts.find((p) => p.id === highlight) ?? null;
   const pickedCut = picked ? specCutList(spec)[spec.parts.indexOf(picked)] : null;
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <aside className="flex w-64 shrink-0 flex-col overflow-y-auto border-r hairline bg-sidebar px-6 pt-7">
+    <div className="flex h-dvh flex-col overflow-y-auto bg-background md:flex-row md:overflow-hidden">
+      <aside className="order-2 w-full shrink-0 overflow-y-auto border-b hairline bg-sidebar px-5 py-5 md:order-1 md:w-64 md:border-b-0 md:border-r md:px-6 md:pt-7">
         <Link to="/" className="flex items-center gap-1.5 text-xs text-walnut hover:underline"><ArrowLeft className="h-3.5 w-3.5" /> All furniture</Link>
         <div className="mt-4 font-serif text-xl tracking-tight">{spec.name}</div>
         <div className="eyebrow mt-1">Atelier · Chairs · {spec.style}</div>
@@ -101,20 +109,23 @@ export function SpecWorkshop({ spec: original }: { spec: FurnitureSpec }) {
         {!spec.verified && <p className="mb-5 mt-auto rounded-md bg-walnut/10 p-2 text-[11px] text-walnut">{fileOf(original).saved ? "Your design, not yet checked by a maker." : "Example design, not yet checked by a maker."}</p>}
       </aside>
 
-      <main className="relative min-w-0 flex-1 overflow-hidden">
-        <div className="absolute inset-0">
+      <main className="relative order-1 min-h-[60vh] min-w-0 flex-1 overflow-hidden md:order-2 md:min-h-0">
+        {!arOpen && <div className="absolute inset-0">
           <StudioShell initial="three" onMiss={() => setHighlight(null)}><SpecModel spec={spec} exploded={exploded} highlight={highlight} onPick={(id) => setHighlight(id === highlight ? null : id)} /></StudioShell>
-        </div>
-        <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between p-5">
-          <div className="pointer-events-auto">
+        </div>}
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between md:p-5">
+          <div className="pointer-events-auto max-w-sm">
             <div className="eyebrow">Chair from a data file</div>
             <h2 className="mt-1 text-2xl">{spec.name}</h2>
             <p className="mt-1 text-xs text-muted-foreground">No code was written for this chair: one file goes in, everything on this page comes out.</p>
           </div>
-          <div className="pointer-events-auto flex gap-1 rounded-lg border hairline bg-card/90 p-1 backdrop-blur">
+          <div className="pointer-events-auto flex w-fit flex-wrap gap-1 rounded-lg border hairline bg-card/90 p-1 backdrop-blur">
             <BeginnerToggle />
             <button onClick={() => setExploded(!exploded)} aria-pressed={exploded} title="Pull the chair apart to see every piece" className={cn("flex h-9 items-center gap-2 rounded-md px-3 text-xs", exploded ? "bg-teal text-accent-foreground" : "hover:bg-secondary")}>
               <Layers className="h-3.5 w-3.5" /> Explode
+            </button>
+            <button onClick={() => setAROpen(true)} className="flex h-9 items-center gap-2 rounded-md px-3 text-xs hover:bg-secondary">
+              <Scan className="h-3.5 w-3.5" /> View in your room
             </button>
           </div>
         </div>
@@ -135,7 +146,7 @@ export function SpecWorkshop({ spec: original }: { spec: FurnitureSpec }) {
         )}
       </main>
 
-      <aside className="flex w-[400px] shrink-0 flex-col border-l hairline bg-card">
+      <aside className="w-full shrink-0 border-t hairline bg-card md:flex md:w-[400px] md:flex-col md:border-l md:border-t-0">
         <div className="flex gap-3 border-b hairline px-5 pt-6">
           {TABS.map((t) => (
             <button key={t.id} onClick={() => setTab(t.id)} title={t.hint} className={cn("-mb-px border-b-2 pb-2.5 text-xs transition-colors", tab === t.id ? "border-teal text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>{t.label}</button>
@@ -149,6 +160,7 @@ export function SpecWorkshop({ spec: original }: { spec: FurnitureSpec }) {
           {tab === "assembly" && <AssemblyTab spec={spec} />}
         </div>
       </aside>
+      {arOpen && <ARModal spec={spec} saved={fileOf(original).saved} onClose={() => setAROpen(false)} />}
     </div>
   );
 }
