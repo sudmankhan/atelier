@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowRight, Check, FileJson, Maximize2, Minimize2, Scan, ScanEye, Wrench, X } from "lucide-react";
+import { ArrowRight, Check, FileJson, Maximize2, Minimize2, Scan, ScanEye, ShieldCheck, Wrench, X } from "lucide-react";
 import { labToSpec } from "@/lib/furniture/fromLab";
 import { saveDesign } from "@/lib/furniture/saved";
 import { SETTINGS, type Setting } from "@/lib/weather";
@@ -19,6 +19,8 @@ import { ARModal } from "./ARModal";
 import { makeChairARLink } from "@/lib/furniture/chairARLink";
 import { BriefNote, DescribeBox } from "./DescribeBox";
 import { FixOptions } from "./FixOptions";
+import { DurabilityCard } from "./DurabilityCard";
+import type { MathTopic } from "@/lib/durability";
 import { findFixes, type Fix, type Lockable } from "@/lib/compromise";
 import type { Brief } from "@/lib/brief";
 
@@ -58,6 +60,14 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
   const results = evaluateLab(d, user);
   const [locked, setLocked] = useState<Lockable[]>([]);
   const [fixOpen, setFixOpen] = useState(false);
+  const [durOpen, setDurOpen] = useState(false);
+  const [mathOpen, setMathOpen] = useState(false);
+  const seeMath = (t: MathTopic) => {
+    setDurOpen(false);
+    setPanel(true);
+    if (t === "tipping" || t === "bending") { setMathOpen(true); mark("math"); }
+    else setTested(true);
+  };
   const failing = results.some((r) => r.level === "bad");
   const fixes = useMemo(() => (tested && failing ? findFixes(d, user, locked) : []), [tested, failing, d, user, locked]);
   const applyFix = (f: Fix) => { mark("pick"); setD(f.design); setFixOpen(false); };
@@ -78,6 +88,9 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
         </div>
         <div className="pointer-events-auto flex max-w-full gap-1 overflow-x-auto rounded-lg border hairline bg-card/90 p-1 backdrop-blur">
           <BeginnerToggle />
+          <button onClick={() => setDurOpen(true)} title="What it's built for, what wears first, how to care for it" className="flex h-9 items-center gap-2 rounded-md px-3 text-xs hover:bg-secondary">
+            <ShieldCheck className="h-3.5 w-3.5" /> Durability report
+          </button>
           <button onClick={() => setAROpen(true)} title="View in your room" className="flex h-9 items-center gap-2 rounded-md px-3 text-xs hover:bg-secondary">
             <Scan className="h-3.5 w-3.5" /> View in your room
           </button>
@@ -118,7 +131,7 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
             <button onClick={() => { setD(BLANK); setTested(false); }} className="rounded-md border hairline px-4 py-2 text-sm">Clear bench</button>
           </div>
           <SaveDesign key={brief?.brief.name ?? "mine"} d={d} suggested={brief?.brief.name} />
-          <details className="rounded-md border hairline p-2" onToggle={(e) => { if ((e.target as HTMLDetailsElement).open) mark("math"); }}>
+          <details open={mathOpen} className="rounded-md border hairline p-2" onToggle={(e) => { const o = (e.target as HTMLDetailsElement).open; setMathOpen(o); if (o) mark("math"); }}>
             <summary className="cursor-pointer text-xs text-muted-foreground">Show the math — side view, tipping, leg bending, your knee height</summary>
             <div className="mt-3 space-y-4">
               <label className="block text-xs">
@@ -143,6 +156,10 @@ export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDes
 
       {tested && (
         <ResultsCard results={results} note={WOODS[d.wood].note} tips={tips} onClose={() => setTested(false)} fixCount={failing ? fixes.length : -1} onFix={() => setFixOpen(true)} />
+      )}
+      {durOpen && (
+        <DurabilityCard d={d} user={user} setting={setting} onSetting={setSetting} onSeeMath={seeMath}
+          onFix={() => { setDurOpen(false); setTested(true); setFixOpen(true); }} onClose={() => setDurOpen(false)} />
       )}
       {fixOpen && tested && failing && (
         <FixOptions d={d} user={user} fixes={fixes} locked={locked} onLock={(k) => setLocked((l) => (l.includes(k) ? l.filter((x) => x !== k) : [...l, k]))} onUse={applyFix} onClose={() => setFixOpen(false)} />

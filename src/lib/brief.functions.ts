@@ -16,8 +16,9 @@ export const designFromText = createServerFn({ method: "POST" })
     return { text: input.text.slice(0, 600), current: input.current ?? null, setting: input.setting ?? "indoor" };
   })
   .handler(async ({ data }): Promise<BriefResult> => {
-    const { BRIEF_SYSTEM, START, heuristicBrief, toBrief } = await import("./brief");
-    const base = data.current ?? START;
+    const { BRIEF_SYSTEM, START, heuristicBrief, isChange, toBrief } = await import("./brief");
+    // A new description starts from a sound chair; only "make it…/add…" edits the one on the bench.
+    const base = data.current && isChange(data.text) ? data.current : START;
     try {
       const { generateGeminiContent } = await import("./gemini.server");
       const out = await generateGeminiContent({
