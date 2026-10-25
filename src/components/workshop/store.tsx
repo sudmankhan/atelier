@@ -65,7 +65,7 @@ interface Store {
 const g = globalThis as unknown as { __workshopCtx?: React.Context<Store | null> };
 const Ctx = (g.__workshopCtx ??= createContext<Store | null>(null));
 
-export function WorkshopProvider({ initialSection, chair = "kangaroo", children }: { initialSection: Section; chair?: ChairId; children: ReactNode }) {
+export function WorkshopProvider({ initialSection, chair = "kangaroo", initialParams, children }: { initialSection: Section; chair?: ChairId; initialParams?: AnyParams; children: ReactNode }) {
   const [typology, setTypologyState] = useState<Typology>(chair === "japanese" ? "japanese" : "kangaroo");
   const mark = useCallback((m: string) => markMilestone(chair, m), [chair]);
   // Time spent on this chair, counted while the tab is visible.
@@ -78,8 +78,8 @@ export function WorkshopProvider({ initialSection, chair = "kangaroo", children 
   const [section, setSection] = useState<Section>(initialSection);
   const [howTopic, setHowTopic] = useState<string | null>(null);
   const [selected, select] = useState<AnyPartId | null>(null);
-  const [kParams, setKParams] = useState<ChairParams>(BASELINE);
-  const [jParams, setJParams] = useState<JapaneseParams>(J_BASELINE);
+  const [kParams, setKParams] = useState<ChairParams>(chair === "kangaroo" && initialParams ? clampParams(initialParams as ChairParams) : BASELINE);
+  const [jParams, setJParams] = useState<JapaneseParams>(chair === "japanese" && initialParams ? clampJapanese(initialParams as JapaneseParams) : J_BASELINE);
   const [user, setUser] = useState<UserMeasurements>({});
   const [compare, setCompare] = useState(false);
   const [exploded, setExploded] = useState(false);
@@ -100,8 +100,8 @@ export function WorkshopProvider({ initialSection, chair = "kangaroo", children 
   useEffect(() => {
     const dk = localRepository.getDraft("kangaroo");
     const dj = localRepository.getDraft("japanese");
-    if (dk) setKParams(clampParams({ ...BASELINE, ...dk }));
-    if (dj) setJParams(clampJapanese({ ...J_BASELINE, ...dj }));
+    if (dk && !(chair === "kangaroo" && initialParams)) setKParams(clampParams({ ...BASELINE, ...dk }));
+    if (dj && !(chair === "japanese" && initialParams)) setJParams(clampJapanese({ ...J_BASELINE, ...dj }));
     setProgress(localRepository.getProgress());
     setDesigns(localRepository.listDesigns());
     loaded.current = true;

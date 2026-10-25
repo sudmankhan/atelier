@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowRight, Check, FileJson, Maximize2, Minimize2, ScanEye, X } from "lucide-react";
+import { ArrowRight, Check, FileJson, Maximize2, Minimize2, Scan, ScanEye, X } from "lucide-react";
 import { labToSpec } from "@/lib/furniture/fromLab";
 import { saveDesign } from "@/lib/furniture/saved";
 import { SETTINGS, type Setting } from "@/lib/weather";
@@ -15,6 +15,8 @@ import { StaticsPanel } from "./StaticsPanel";
 import { BeamPanel } from "./BeamPanel";
 import { ProvenanceBadge } from "./ProvenanceBadge";
 import { useWorkshop } from "./store";
+import { ARModal } from "./ARModal";
+import { makeChairARLink } from "@/lib/furniture/chairARLink";
 
 const BASES: { id: Base; label: string }[] = [
   { id: "four", label: "4 straight legs" },
@@ -29,9 +31,11 @@ const BACKS: { id: Back; label: string }[] = [
   { id: "panel", label: "Solid panel" },
 ];
 
-export function ComponentLab() {
+export function ComponentLab({ initialDesign, autoOpenAR = false }: { initialDesign?: LabDesign; autoOpenAR?: boolean }) {
   const { mark } = useWorkshop();
-  const [d, setD] = useState<LabDesign>(BLANK);
+  const [d, setD] = useState<LabDesign>(initialDesign ?? BLANK);
+  const [arOpen, setAROpen] = useState(autoOpenAR);
+  const arSpec = useMemo(() => labToSpec(d, "My chair"), [d]);
   const [tested, setTested] = useState(false);
   const [xray, setXray] = useState(false);
   const [panel, setPanel] = useState(true);
@@ -43,19 +47,22 @@ export function ComponentLab() {
   const tips = tested && results.some((r) => r.area === "Stability" && r.level === "bad");
   return (
     <main className="relative min-w-0 flex-1 overflow-hidden">
-      <div className="absolute inset-0">
+      {!arOpen && <div className="absolute inset-0">
         <StudioShell initial="three">
           <group position={[panel ? 0.3 : 0, 0, 0]}><LabModel d={d} xray={xray} tipping={tips} /></group>
         </StudioShell>
-      </div>
+      </div>}
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between p-5">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col items-start justify-between gap-2 p-3 sm:flex-row sm:p-5">
         <div className="pointer-events-auto">
           <div className="eyebrow">Build your own</div>
           <h2 className="mt-1 text-2xl">Pick parts, then test your chair</h2>
         </div>
-        <div className="pointer-events-auto flex gap-1 rounded-lg border hairline bg-card/90 p-1 backdrop-blur">
+        <div className="pointer-events-auto flex max-w-full gap-1 overflow-x-auto rounded-lg border hairline bg-card/90 p-1 backdrop-blur">
           <BeginnerToggle />
+          <button onClick={() => setAROpen(true)} title="View in your room" className="flex h-9 items-center gap-2 rounded-md px-3 text-xs hover:bg-secondary">
+            <Scan className="h-3.5 w-3.5" /> View in your room
+          </button>
           <button onClick={() => setXray(!xray)} aria-pressed={xray} title="See-through view: the wood turns glassy so you can see where each joint sits and how big it is" className={cn("flex h-9 items-center gap-2 rounded-md px-3 text-xs", xray ? "bg-teal text-accent-foreground" : "hover:bg-secondary")}>
             <ScanEye className="h-3.5 w-3.5" /> See joints
           </button>
@@ -66,7 +73,7 @@ export function ComponentLab() {
       </div>
 
       {panel && (
-        <div className="absolute z-10 left-5 top-24 bottom-5 w-80 space-y-4 overflow-y-auto rounded-xl border hairline bg-card/95 p-4 shadow-sm backdrop-blur">
+        <div className="absolute z-10 left-3 top-40 bottom-3 w-[min(20rem,calc(100vw-1.5rem))] space-y-4 overflow-y-auto rounded-xl border hairline bg-card/95 p-4 shadow-sm backdrop-blur sm:left-5 sm:top-24 sm:bottom-5">
           <Pick title="Base" hint="What the chair stands on." opts={BASES} v={d.base} on={(v) => set("base", v)} />
           <Pick title="Back" hint="What you lean on. No back = a stool." opts={BACKS} v={d.back} on={(v) => set("back", v)} />
           <Pick title="Joints" hint="How the legs lock into the seat. Mortise & tenon is strongest, screws weakest." opts={Object.entries(JOINT_TYPES).map(([id, j]) => ({ id: id as LabDesign["joint"], label: j.name }))} v={d.joint} on={(v) => set("joint", v)} />
@@ -116,6 +123,7 @@ export function ComponentLab() {
       {tested && (
         <ResultsCard results={results} note={WOODS[d.wood].note} tips={tips} onClose={() => setTested(false)} />
       )}
+      {arOpen && <ARModal spec={arSpec} shareUrl={makeChairARLink(window.location.href, "lab", d)} onClose={() => setAROpen(false)} />}
     </main>
   );
 }

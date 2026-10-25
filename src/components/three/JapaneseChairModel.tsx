@@ -1,5 +1,5 @@
 import "./r3fDevSourceShim";
-import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
 import type { JapaneseParams } from "@/lib/chair/japanese/params";
@@ -111,6 +111,7 @@ function JGroup({ id, explode, exploded, visible, interactive, onSelect, onHover
 
 export interface JapaneseChairModelProps {
   params: JapaneseParams;
+  modelRef?: Ref<THREE.Group>;
   selected?: JPartId | null;
   onSelect?: (p: JPartId) => void;
   exploded?: boolean;
@@ -149,6 +150,7 @@ function seatGeometry(W: number, D: number) {
 
 export function JapaneseChairModel({
   params,
+  modelRef,
   selected = null,
   onSelect,
   exploded = false,
@@ -235,7 +237,7 @@ export function JapaneseChairModel({
 
   return (
     <JCtx.Provider value={{ ghost, selected, affected, hovered, frame: fin.frame, seat: fin.seat }}>
-      <group scale={0.01}>
+      <group ref={modelRef} scale={0.01}>
         <JGroup id="legs" explode={J_EXPLODE.legs} visible={vis("legs")} {...common}>
           {legs.map((l, i) => (
             <Taper key={i} a={l.a} b={l.b} rTop={1.4} rBottom={1.9} />

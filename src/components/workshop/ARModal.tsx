@@ -6,6 +6,8 @@ import { SpecModel } from "@/components/three/SpecModel";
 import { arModesForSource, makeARLink } from "@/lib/furniture/arLink";
 import { exportSpecGlb } from "@/lib/furniture/exportGlb";
 import type { FurnitureSpec } from "@/lib/furniture/spec";
+import type { Group } from "three";
+import { exportSnapshotGlb } from "@/lib/furniture/snapshotGlb";
 
 type ModelViewerElement = HTMLElement & { canActivateAR: boolean; loaded: boolean };
 
@@ -46,11 +48,19 @@ function PhoneQR({ url }: { url: string }) {
 
 export function ARModal({
   spec,
+  group,
+  name,
+  fallback,
+  shareUrl,
   saved,
   onClose,
 }: {
-  spec: FurnitureSpec;
-  saved: boolean;
+  spec?: FurnitureSpec;
+  group?: Group;
+  name?: string;
+  fallback?: React.ReactNode;
+  shareUrl?: string;
+  saved?: boolean;
   onClose: () => void;
 }) {
   const [blobUrl, setBlobUrl] = useState<string>();
@@ -58,7 +68,7 @@ export function ARModal({
   const [loaded, setLoaded] = useState(false);
   const [canAR, setCanAR] = useState(false);
   const viewer = useRef<ModelViewerElement | null>(null);
-  const link = useMemo(() => makeARLink(window.location.href, spec), [spec]);
+  const link = useMemo(() => shareUrl ?? (spec ? makeARLink(window.location.href, spec) : undefined), [shareUrl, spec]);
 
   useEffect(() => {
     let active = true;
@@ -68,7 +78,7 @@ export function ARModal({
     }, 25_000);
     // Import the browser bundle by URL. A normal package import can be hoisted into
     // TanStack/Nitro's server chunks, where model-viewer's `self` access crashes SSR.
-    Promise.all([import(/* @vite-ignore */ modelViewerScript), exportSpecGlb(spec)])
+    Promise.all([import(/* @vite-ignore */ modelViewerScript), spec ? exportSpecGlb(spec) : group ? exportSnapshotGlb(group) : Promise.reject(new Error("No chair model"))])
       .then(([, glb]) => {
         if (!active) return;
         url = URL.createObjectURL(glb);
@@ -83,7 +93,7 @@ export function ARModal({
       window.clearTimeout(timeout);
       if (url) URL.revokeObjectURL(url);
     };
-  }, [spec]);
+  }, [spec, group]);
 
   useEffect(() => {
     if (!blobUrl || failure) return;
@@ -127,13 +137,13 @@ export function ARModal({
         <div className="relative min-h-[260px] flex-1 overflow-hidden rounded-lg bg-[#F1ECE3]">
           {failure ? (
             <StudioShell initial="three">
-              <SpecModel spec={spec} />
+              {fallback ?? (spec ? <SpecModel spec={spec} /> : null)}
             </StudioShell>
           ) : blobUrl ? (
             <model-viewer
               ref={viewer}
               src={blobUrl}
-              alt={`${spec.name} at your chosen size`}
+              alt={`${name ?? spec?.name ?? "Chair"} at your chosen size`}
               ar
               ar-modes={arModesForSource(blobUrl)}
               ar-placement="floor"
@@ -170,7 +180,7 @@ export function ARModal({
           <p className="text-center text-xs text-muted-foreground">
             AR works on the device where this design is saved.
           </p>
-        ) : !canAR || failure ? (
+        ) : link && (!canAR || failure) ? (
           <PhoneQR url={link} />
         ) : null}
         <p className="text-center text-xs text-muted-foreground">
