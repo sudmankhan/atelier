@@ -90,6 +90,14 @@ export function toBrief(raw: unknown, base: LabDesign = START, baseSetting: Sett
   };
 }
 
+/**
+ * Is this a change to the chair on the bench ("make it taller", "add a back") or a new chair ("a patio chair")?
+ * New descriptions start from the sound START chair, not from whatever happens to be on the bench.
+ */
+export function isChange(text: string): boolean {
+  return /^\s*(make|change|turn|switch|swap|use|add|remove|drop|give|put|keep|set|lower|raise|widen|narrow|shorten|lengthen|now|and|also|but|instead|more|less|bigger|smaller|taller|shorter|wider|narrower|deeper|shallower|it|its|it's|this|same)\b/i.test(text);
+}
+
 /** Height words → centimetres: "6'2", "6 ft 2", "188 cm", "1.88 m". */
 export function heightCm(text: string): number | null {
   const ft = text.match(/(\d)\s*(?:'|’|ft|feet|foot)\s*(\d{1,2})?\s*(?:"|”|in|inches)?/i);
@@ -128,6 +136,7 @@ export function heuristicBrief(text: string, base: LabDesign = START, baseSettin
   if (/kangaroo|z-?frame|cantilever/.test(t)) raw.base = "zframe";
   if (/sled|runner/.test(t)) raw.base = "sled";
   if (/stool|no back|backless/.test(t)) raw.back = "none";
+  else if (base.back === "none" && /chair/.test(t)) raw.back = "slats";
   else if (/panel|solid back/.test(t)) raw.back = "panel";
   else if (/ladder|slat|nordic|scandi|shaker|farmhouse/.test(t)) raw.back = "slats";
   if (/lounge|relax|reading|recline|laid[- ]back/.test(t)) { raw.backAngle = 110; raw.seatHeight = 40; raw.seatDepth = 48; }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BriefSchema, LAB_RANGES, START, heightCm, heuristicBrief, seatForHeight, toBrief } from "./brief";
+import { BriefSchema, LAB_RANGES, START, heightCm, heuristicBrief, isChange, seatForHeight, toBrief } from "./brief";
 import { evaluateLab } from "./lab";
 
 describe("AI answer → engine settings", () => {
@@ -77,5 +77,17 @@ describe("keyword fallback (no AI)", () => {
 describe("the starting chair", () => {
   it("passes every test, so a described chair starts sound", () => {
     expect(evaluateLab(START).filter((r) => r.level === "bad")).toEqual([]);
+  });
+});
+
+describe("new chair vs. change to this one", () => {
+  it("tells the two apart", () => {
+    for (const t of ["make it taller", "Add armrests", "more upright please", "change the wood to walnut", "it should be wider"]) expect(isChange(t)).toBe(true);
+    for (const t of ["A reading chair for my patio", "a sturdy dining chair, I'm 6'2\"", "Japanese style stick chair", "I want a kids chair"]) expect(isChange(t)).toBe(false);
+  });
+  it("a chair asked for on a blank bench gets a back", () => {
+    const blankish = { ...START, back: "none" as const };
+    expect(heuristicBrief("make it a reading chair", blankish).design.back).toBe("slats");
+    expect(heuristicBrief("make it a stool", START).design.back).toBe("none");
   });
 });
