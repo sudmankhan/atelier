@@ -11,9 +11,9 @@ import type { ChairId } from "@/lib/storage/chairProgress";
 const LAB_PREVIEW: LabDesign = { ...BLANK, base: "splayed", back: "spindles", joint: "wedged", wood: "oak", splay: 8, stretchers: true };
 
 /** Small slowly-turning 3D model for the chandelier card. Same models as the workshop. */
-export default function ChairPreview({ chair }: { chair: ChairId }) {
+export default function ChairPreview({ chair, autoRotate = true }: { chair: ChairId; autoRotate?: boolean }) {
   return (
-    <StudioShell autoRotate initial="three">
+    <StudioShell autoRotate={autoRotate} initial="three">
       {chair === "kangaroo" && <ChairModel params={BASELINE} />}
       {chair === "japanese" && <JapaneseChairModel params={J_BASELINE} />}
       {chair === "lab" && <LabModel d={LAB_PREVIEW} xray={false} tipping={false} />}

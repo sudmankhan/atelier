@@ -1,3 +1,6 @@
+import { useEffect, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { shopSession } from "@/lib/shopSession";
 import { createFileRoute } from "@tanstack/react-router";
 import { WorkshopProvider, useWorkshop, type Section } from "@/components/workshop/store";
 import { Sidebar } from "@/components/workshop/Sidebar";
@@ -30,15 +33,18 @@ export const Route = createFileRoute("/workshop")({
 });
 
 function WorkshopPage() {
+  const reduce = useReducedMotion();
+  const [enter] = useState(() => shopSession("atelier-workshop-enter") === "yes");
+  useEffect(() => { shopSession("atelier-workshop-enter", null); }, []);
   const { section, chair = "kangaroo" } = Route.useSearch();
   const start: Section = chair === "lab" ? "lab" : (section ?? (chair === "kangaroo" ? "study" : "design"));
   return (
     <WorkshopProvider key={chair} initialSection={start} chair={chair}>
-      <div className="flex h-screen overflow-hidden bg-background">
+      <motion.div initial={enter ? { opacity: 0, y: reduce ? 0 : 12 } : false} animate={{ opacity: 1, y: 0 }} transition={{ duration: reduce ? 0.15 : 0.45, ease: "easeOut" }} className="flex h-screen overflow-hidden bg-background">
         <Sidebar />
         <Center />
         {chair !== "lab" && <Bench />}
-      </div>
+      </motion.div>
     </WorkshopProvider>
   );
 }

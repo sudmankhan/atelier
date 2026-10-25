@@ -1,13 +1,25 @@
+import { useRef, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
 import { createFileRoute } from "@tanstack/react-router";
 import { Chandelier } from "@/components/Chandelier";
+import { shopSession } from "@/lib/shopSession";
+import type { ChairId } from "@/lib/storage/chairProgress";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Atelier — Learn to build furniture" },
-      { name: "description", content: "Pick a piece, change it in 3D, see where it would break, fit it to your wood and print the cut list. Starting with chairs." },
+      {
+        name: "description",
+        content:
+          "Pick a piece, change it in 3D, see where it would break, fit it to your wood and print the cut list. Starting with chairs.",
+      },
       { property: "og:title", content: "Atelier — Learn to build furniture" },
-      { property: "og:description", content: "An interactive furniture-building studio. Starting with chairs: design, test, fit to your boards, and take it to the shop." },
+      {
+        property: "og:description",
+        content:
+          "An interactive furniture-building studio. Starting with chairs: design, test, fit to your boards, and take it to the shop.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -16,15 +28,62 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  const navigate = Route.useNavigate();
+  const reduce = useReducedMotion();
+  const [entering, setEntering] = useState<ChairId | null>(null);
+  const [entryError, setEntryError] = useState(false);
+  const busy = useRef(false);
+  const openChair = (chair: ChairId) => {
+    if (busy.current) return;
+    busy.current = true;
+    setEntryError(false);
+    if (reduce) void enterWorkshop(chair);
+    else setEntering(chair);
+  };
+  const enterWorkshop = async (chair: ChairId) => {
+    shopSession("atelier-workshop-enter", "yes");
+    try {
+      await navigate({ to: "/workshop", search: { chair } });
+    } catch {
+      shopSession("atelier-workshop-enter", null);
+      setEntering(null);
+      busy.current = false;
+      setEntryError(true);
+    }
+  };
+
   return (
-    <div className="flex h-screen flex-col bg-background">
-      <header className="flex items-baseline justify-between px-10 pt-7 pb-2">
-        <div className="font-serif text-xl tracking-tight">Atelier</div>
-        <div className="text-xs text-muted-foreground">A furniture-building studio · starting with chairs</div>
-      </header>
-      <main className="min-h-0 flex-1">
-        <Chandelier />
-      </main>
+    <div className="collection-page branch-page">
+      <a href="#main-content" className="collection-skip">
+        Skip to content
+      </a>
+      <div inert={!!entering}>
+        <header className="collection-header">
+          <a href="/" className="collection-wordmark" aria-label="Atelier home">
+            Atelier<span aria-hidden="true">.</span>
+          </a>
+          <span className="collection-header-note">An open studio for the curious maker</span>
+          <span className="branch-header-note">Furniture, rooted in craft</span>
+        </header>
+        <main id="main-content" className="branch-main">
+          <Chandelier interactive={!entering} entering={!!entering} onOpen={openChair} />
+        </main>
+        {entryError && (
+          <p role="alert" className="collection-error">
+            The workshop could not open. Please try again.
+          </p>
+        )}
+      </div>
+      {entering && (
+        <motion.div
+          className="collection-enter-wash"
+          aria-hidden="true"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.45, ease: "easeIn" }}
+          onAnimationComplete={() => void enterWorkshop(entering)}
+        />
+      )}
     </div>
   );
 }
