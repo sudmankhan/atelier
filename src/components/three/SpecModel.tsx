@@ -5,10 +5,9 @@ import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import type { FurnitureSpec, PartSpec } from "@/lib/furniture/spec";
+import { METRES_PER_CM as S, WOOD_COLORS, boardSize, stickShape } from "@/lib/furniture/modelGeometry";
 
-const S = 0.01;
 type V = [number, number, number];
-const WOOD: Record<FurnitureSpec["wood"], string> = { oak: "#c49a62", ash: "#d8c29a", walnut: "#6b4a33", pine: "#e1c38c" };
 const PICKED = "#547D75";
 const HOVER = "#8fb3aa";
 
@@ -25,21 +24,10 @@ function Glide({ to, children }: { to: V; children: React.ReactNode }) {
 
 /** A straight member from a to b: width runs sideways, thickness runs (roughly) up. */
 function Stick({ a, b, w, t, round, color, events }: { a: V; b: V; w: number; t: number; round?: boolean; color: string; events: object }) {
-  const { matrix, len } = useMemo(() => {
-    const A = new THREE.Vector3(...a).multiplyScalar(S), B = new THREE.Vector3(...b).multiplyScalar(S);
-    const dir = B.clone().sub(A);
-    const len = dir.length();
-    const y = dir.clone().normalize();
-    const hint = Math.abs(y.y) > 0.95 ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(0, 1, 0);
-    const x = new THREE.Vector3().crossVectors(y, hint).normalize();
-    const z = new THREE.Vector3().crossVectors(x, y).normalize();
-    const m = new THREE.Matrix4().makeBasis(x, y, z);
-    m.setPosition(A.add(B).multiplyScalar(0.5));
-    return { matrix: m, len };
-  }, [a, b]);
+  const { matrix, box, cylinder } = useMemo(() => stickShape(a, b, w, t), [a, b, w, t]);
   return (
     <mesh matrix={matrix} matrixAutoUpdate={false} castShadow receiveShadow {...events}>
-      {round ? <cylinderGeometry args={[(w / 2) * S, (w / 2) * S, len, 18]} /> : <boxGeometry args={[w * S, len, t * S]} />}
+      {round ? <cylinderGeometry args={cylinder} /> : <boxGeometry args={box} />}
       <meshStandardMaterial color={color} roughness={0.7} />
     </mesh>
   );
@@ -48,7 +36,7 @@ function Stick({ a, b, w, t, round, color, events }: { a: V; b: V; w: number; t:
 function Board({ at, size, color, events }: { at: V; size: PartSpec["size"]; color: string; events: object }) {
   return (
     <mesh position={[at[0] * S, at[1] * S, at[2] * S]} castShadow receiveShadow {...events}>
-      <boxGeometry args={[size[0] * S, size[2] * S, size[1] * S]} />
+      <boxGeometry args={boardSize(size)} />
       <meshStandardMaterial color={color} roughness={0.7} />
     </mesh>
   );
@@ -57,7 +45,7 @@ function Board({ at, size, color, events }: { at: V; size: PartSpec["size"]; col
 const mid = (a: V, b: V): V => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
 
 export function SpecModel({ spec, exploded = false, highlight, onPick }: { spec: FurnitureSpec; exploded?: boolean; highlight?: string | null; onPick?: (partId: string) => void }) {
-  const col = WOOD[spec.wood];
+  const col = WOOD_COLORS[spec.wood];
   const [hover, setHover] = useState<string | null>(null);
   // Explode: every piece moves straight out from the chair's middle, the seat lifts clear of the frame.
   const centre = useMemo<V>(() => {

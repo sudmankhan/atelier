@@ -10,15 +10,16 @@ import { Templates } from "@/components/workshop/Templates";
 import { CHAIR_IDS, isSpecPiece, type PieceId } from "@/lib/storage/chairProgress";
 import { findSpec } from "@/lib/furniture/saved";
 import { MissingDesign, SpecWorkshop } from "@/components/workshop/SpecWorkshop";
+import { arSearch } from "@/lib/furniture/arLink";
 
 const SECTIONS: Section[] = ["discover", "study", "design", "build", "lab", "projects", "library", "progress", "how", "templates"];
 
 export const Route = createFileRoute("/workshop")({
   ssr: false,
-  validateSearch: (s: Record<string, unknown>): { section?: Section; chair?: PieceId } => {
+  validateSearch: (s: Record<string, unknown>): { section?: Section; chair?: PieceId; dims?: string; ar?: 1 } => {
     const c = typeof s["chair"] === "string" ? s["chair"] : "";
     const chair = CHAIR_IDS.includes(c as never) ? (c as PieceId) : isSpecPiece(c) && /^spec:[a-z0-9-]+$/.test(c) ? (c as PieceId) : undefined;
-    return { section: SECTIONS.includes(s["section"] as Section) ? (s["section"] as Section) : undefined, chair };
+    return { section: SECTIONS.includes(s["section"] as Section) ? (s["section"] as Section) : undefined, chair, ...arSearch(s) };
   },
   head: () => ({
     meta: [
@@ -34,10 +35,10 @@ export const Route = createFileRoute("/workshop")({
 });
 
 function WorkshopPage() {
-  const { section, chair = "kangaroo" } = Route.useSearch();
+  const { section, chair = "kangaroo", dims, ar } = Route.useSearch();
   if (isSpecPiece(chair)) {
     const spec = findSpec(chair.slice(5));
-    return spec ? <SpecWorkshop key={chair} spec={spec} /> : <MissingDesign />;
+    return spec ? <SpecWorkshop key={chair} spec={spec} initialDims={dims} autoOpenAR={ar === 1} /> : <MissingDesign />;
   }
   const start: Section = chair === "lab" ? "lab" : (section ?? (chair === "kangaroo" ? "study" : "design"));
   return (
